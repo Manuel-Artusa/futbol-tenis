@@ -23,19 +23,41 @@ const server = http.createServer((req, res) => {
   });
 });
 
-// ---- lista de campeones: se guarda en un archivo JSON ----
+// ---- lista de campeones ----
+// Si están SUPABASE_URL y SUPABASE_KEY, la lista se guarda en Supabase (gratis y no se borra).
+// Si no, se guarda en un archivo, que en los hostings gratis se borra al reiniciar.
+const SB_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SB_KEY = process.env.SUPABASE_KEY || '';
+const useSupabase = !!(SB_URL && SB_KEY);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CHAMPS_FILE = path.join(DATA_DIR, 'campeones.json');
 let champs = [];
-try { champs = JSON.parse(fs.readFileSync(CHAMPS_FILE, 'utf8')); if (!Array.isArray(champs)) champs = []; } catch (e) { champs = []; }
-function saveChampsFile() {
-  fs.mkdir(DATA_DIR, { recursive: true }, () => fs.writeFile(CHAMPS_FILE, JSON.stringify(champs), () => {}));
+if (!useSupabase) { try { champs = JSON.parse(fs.readFileSync(CHAMPS_FILE, 'utf8')); if (!Array.isArray(champs)) champs = []; } catch (e) { champs = []; } }
+function saveChampsFile() { fs.mkdir(DATA_DIR, { recursive: true }, () => fs.writeFile(CHAMPS_FILE, JSON.stringify(champs), () => {})); }
+const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' });
+let sbCache = null, sbCacheAt = 0;
+async function listChamps() {
+  if (!useSupabase) return champs.slice(0, 100);
+  if (sbCache && Date.now() - sbCacheAt < 10000) return sbCache;
+  const r = await fetch(`${SB_URL}/rest/v1/campeones?select=nombre,dificultad,rival,resultado,creado&order=creado.desc&limit=100`, { headers: sbHeaders() });
+  if (!r.ok) throw new Error('supabase ' + r.status);
+  const rows = await r.json();
+  sbCache = rows.map(x => ({ n: x.nombre, d: x.dificultad, r: x.rival || '', s: x.resultado || '', t: Date.parse(x.creado) || 0 }));
+  sbCacheAt = Date.now();
+  return sbCache;
+}
+async function addChamp(e) {
+  if (!useSupabase) { champs.unshift(e); champs = champs.slice(0, 500); saveChampsFile(); return; }
+  const r = await fetch(`${SB_URL}/rest/v1/campeones`, { method: 'POST', headers: Object.assign(sbHeaders(), { Prefer: 'return=minimal' }),
+    body: JSON.stringify({ nombre: e.n, dificultad: e.d, rival: e.r, resultado: e.s }) });
+  if (!r.ok) throw new Error('supabase ' + r.status);
+  sbCache = null;
 }
 const lastPost = new Map();
 const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 function champsApi(req, res) {
   const json = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
-  if (req.method === 'GET') return json(200, champs.slice(0, 100));
+  if (req.method === 'GET') { listChamps().then(a => json(200, a)).catch(err => { console.error(err.message); json(502, { error: 'no se pudo leer la lista' }); }); return; }
   if (req.method !== 'POST') return json(405, { error: 'método no permitido' });
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   const now = Date.now();
@@ -46,11 +68,10 @@ function champsApi(req, res) {
     let e; try { e = JSON.parse(body); } catch (err) { return json(400, { error: 'datos inválidos' }); }
     const entry = { n: clean(e.n, 16) || 'Sin nombre', d: [0, 1, 2].includes(e.d) ? e.d : 0, r: clean(e.r, 40), s: /^\d{1,2}–\d{1,2}$/.test(e.s) ? e.s : '', t: now };
     lastPost.set(ip, now);
-    champs.unshift(entry); champs = champs.slice(0, 500);
-    saveChampsFile();
-    json(200, { ok: true });
+    addChamp(entry).then(() => json(200, { ok: true })).catch(err => { console.error(err.message); lastPost.delete(ip); json(502, { error: 'no se pudo guardar' }); });
   });
 }
+console.log(useSupabase ? 'Campeones: se guardan en Supabase' : 'Campeones: se guardan en un archivo (se borra al reiniciar en hostings gratis)');
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
 const rooms = new Map(); // code -> { host, guest, specs:Set, o }

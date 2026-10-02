@@ -31,13 +31,23 @@ En el plan gratis, si nadie entra por unos 15 minutos el servidor se apaga, y el
 
 También funciona en Railway (pago) o en cualquier otro hosting de Node que acepte WebSockets.
 
-## Lista de campeones
+## Lista de campeones (para que no se borre)
 
-Cuando alguien gana la Copa LD puede guardar su nombre en la lista de campeones, con la dificultad, el resultado de la final y la fecha. En la web esa lista la guarda el servidor, así que la ven todos los que entran.
+Cuando alguien gana la Copa LD puede guardar su nombre en la lista de campeones, con la dificultad, el resultado de la final y la fecha. La lista la guarda el servidor, así que la ven todos los que entran.
 
-El servidor la guarda en el archivo `data/campeones.json`. En los planes gratis ese archivo se borra cada vez que el servidor se reinicia o subís una versión nueva. Para que la lista no se pierda nunca, agregale al servicio un disco persistente (en Render: **Disks**, es pago), montalo en una carpeta, por ejemplo `/var/data`, y creá la variable de entorno `DATA_DIR` con esa misma ruta.
+En el plan gratis de Render el servidor se reinicia seguido y pierde los archivos, así que la lista se borraría. Para que quede guardada para siempre, se guarda en Supabase, que es gratis:
 
-Si el servidor no responde, cada compu guarda la lista por su cuenta.
+1. Entrá a supabase.com y creá un proyecto nuevo (gratis).
+2. Andá a **SQL Editor → New query**, pegá todo el contenido del archivo `supabase.sql` de esta carpeta y tocá **Run**. Eso crea la tabla `campeones`.
+3. Andá a **Project Settings → API** (o **Data API**) y copiá dos cosas: la **Project URL** y la clave **service_role** (la secreta, no la *anon*).
+4. En Render, entrá a tu servicio, **Environment → Add Environment Variable**, y agregá:
+   - `SUPABASE_URL` con la Project URL.
+   - `SUPABASE_KEY` con la clave service_role.
+5. Guardá. Render reinicia el servidor solo y desde ahí la lista no se borra más.
+
+La clave service_role es secreta: solo va en Render, nunca en el código ni en GitHub.
+
+Si no configurás Supabase, el juego igual anda, pero la lista se guarda en un archivo y se borra cada vez que el servidor se reinicia.
 
 ## Cómo funciona el online
 

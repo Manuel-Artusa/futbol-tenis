@@ -51,6 +51,8 @@ Si no configurás Supabase, el juego igual anda, pero la lista se guarda en un a
 
 ## Cómo funciona el online
 
+- El servidor solo presenta a los dos jugadores. Después, si se puede, los datos van **directo de una compu a la otra**, que es mucho más rápido cuando los dos están cerca. Arriba a la izquierda dice **Directo** o **Por servidor**, con la demora en milisegundos.
+- Si la conexión directa no se puede armar (pasa con algunas redes de empresa o de celular), el partido sigue igual, pero pasando por el servidor.
 - El que crea el partido juega con Celeste y su navegador lleva la pelota y las reglas.
 - El que se une juega con Naranja. Su compu decide sus movimientos y sus golpes en el momento, y después le avisa al anfitrión cómo salió la pelota.
 - Cada uno ve el nombre que puso en el menú.

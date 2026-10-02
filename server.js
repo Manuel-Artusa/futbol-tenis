@@ -141,6 +141,10 @@ wss.on('connection', ws => {
         break;
       }
       case 'leave': leave(ws); send(ws, openList()); break;
+      case 'ping': send(ws, { t: 'pong', c: m.c }); break;
+      case 'sig': // datos para armar la conexión directa entre los dos jugadores
+        if (r) send(ws.role === 'host' ? r.guest : ws.role === 'guest' ? r.host : null, { t: 'sig', d: m.d });
+        break;
     }
   });
   ws.on('close', () => leave(ws));

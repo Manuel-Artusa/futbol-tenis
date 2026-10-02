@@ -1038,6 +1038,17 @@ function updateAI(dt) {
 const GRACE = 0.4;
 let localHitSeq = 0, lastHit = [0], ignoreBallUntil = 0, lastHitSeq = 0, pendingAward = null;
 const rd2 = v => Math.round(v * 100) / 100;
+// demora estimada de la red (segundos): la web la mide con ping; en Claude se usa un valor fijo
+let netLat = 0.1;
+const lagS = () => clamp(netLat, 0, 0.3);
+function syncBall(b, hard) {
+  const t = { x: num(b[0]), y: num(b[1]), z: num(b[2]), vx: num(b[3]), vy: num(b[4]), vz: num(b[5]), super: !!b[6] };
+  if (!hard) { const n = Math.round(lagS() * 120); for (let i = 0; i < n; i++) stepBall(t, 1 / 120, null); }
+  const err = Math.hypot(t.x - ball.x, t.y - ball.y, t.z - ball.z);
+  if (hard || err > 0.8) { ball.x = t.x; ball.y = t.y; ball.z = t.z; }
+  else { const k = 0.35; ball.x += (t.x - ball.x) * k; ball.y += (t.y - ball.y) * k; ball.z += (t.z - ball.z) * k; }
+  ball.vx = t.vx; ball.vy = t.vy; ball.vz = t.vz; ball.super = t.super;
+}
 function guestLocalHit() {
   const p = ai;
   if (!p.buf || spectator) return;
@@ -1075,6 +1086,8 @@ function applyGuestHit(h) {
   else ai.superM = Math.min(100, ai.superM + 7);
   ball.x = clamp(num(h[2]), -AX + R, AX - R); ball.y = clamp(num(h[3]), R, 12); ball.z = bz;
   ball.vx = clamp(num(h[5]), -40, 40); ball.vy = clamp(num(h[6]), -40, 40); ball.vz = clamp(num(h[7]), -40, 40); ball.super = sup;
+  // el golpe pasó hace un ratito: se adelanta la pelota para que no "vuelva para atrás"
+  const n = Math.round(lagS() * 120); for (let i = 0; i < n && state === 'play'; i++) stepBall(ball, 1 / 120, onBallEvent);
   playFx('k', sup ? 1.3 : type === 'remate' ? 1 : 0.6); if (sup) playFx('sup');
   const hg = ball.y - ai.y; ai.anim = hg < 0.85 ? 'kick' : hg < 1.55 ? 'chest' : 'head'; ai.animT = 0.32; ai.animId++;
 }
@@ -1315,6 +1328,7 @@ function buildLegend() {
 buildLegend();
 
 // ---------- Online (WebSocket al servidor del juego) ----------
+let lastSlow = 0;
 let ws = null, code = '', guestOn = false, lobbyGames = [], wsReady = false, joining = false;
 const remote = { mx: 0, mz: 0, jump: false, remHold: false, sprint: false };
 let lastActSeq = 0, lastSuSeq = 0, actSeq = 0, suSeq = 0, lastAct = [0, '', 0], lastSend = 0, lastEvSeen = 0, gotSnap = false;
@@ -1329,7 +1343,7 @@ function connect() {
   setOnlineEnabled(false); setOnlineNote('Conectando con el servidor…');
   try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); }
   catch (e) { setOnlineNote('No se pudo conectar con el servidor.'); return; }
-  ws.onopen = () => { wsReady = true; setOnlineEnabled(true); setOnlineNote(SHARE_NOTE); };
+  ws.onopen = () => { wsReady = true; setOnlineEnabled(true); setOnlineNote(SHARE_NOTE); wsSend({ t: 'ping', c: performance.now() }); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } onNet(m); };
   ws.onclose = () => {
     wsReady = false; ws = null; setOnlineEnabled(false); setOnlineNote('Se cortó la conexión con el servidor. Reintentando…');
@@ -1339,16 +1353,70 @@ function connect() {
   };
 }
 connect();
+setInterval(() => { if (wsReady) wsSend({ t: 'ping', c: performance.now() }); if (p2p) dcSend({ t: 'ping2', c: performance.now() }); }, 2000);
 
-function onNet(m) {
+// ---- conexión directa entre los dos jugadores (WebRTC) ----
+// El servidor solo sirve para presentarlos; después los datos van de compu a compu,
+// que es mucho más rápido cuando los dos están cerca. Si no se puede, sigue por el servidor.
+let pc = null, dc = null, p2p = false, srvLat = 0.15, p2pLat = 0.05;
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+function updateNetPill() {
+  netLat = p2p ? p2pLat : srvLat;
+  $('netTxt').textContent = (p2p ? 'Directo · ' : 'Por servidor · ') + Math.round(netLat * 1000) + ' ms';
+}
+function dcSend(o) { if (dc && dc.readyState === 'open') { try { dc.send(JSON.stringify(o)); return true; } catch (e) {} } return false; }
+function setupDc() {
+  dc.onopen = () => { p2p = true; updateNetPill(); dcSend({ t: 'ping2', c: performance.now() }); };
+  dc.onclose = () => { p2p = false; updateNetPill(); };
+  dc.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+    if (m.t === 'ping2') { dcSend({ t: 'pong2', c: m.c }); return; }
+    if (m.t === 'pong2') { const rtt = performance.now() - num(m.c); if (rtt > 0 && rtt < 3000) { p2pLat = p2pLat * 0.6 + (rtt / 2000) * 0.4; updateNetPill(); } return; }
+    if (m.t === 'g' || m.t === 'in') onNet(m, true);
+  };
+}
+function rtcStart(isHost) {
+  rtcStop();
+  if (typeof RTCPeerConnection === 'undefined') return;
+  try { pc = new RTCPeerConnection({ iceServers: ICE }); } catch (e) { pc = null; return; }
+  pc.onicecandidate = e => { if (e.candidate) wsSend({ t: 'sig', d: { c: e.candidate } }); };
+  pc.onconnectionstatechange = () => { if (pc && ['failed', 'closed'].includes(pc.connectionState)) { p2p = false; updateNetPill(); } };
+  if (isHost) {
+    dc = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 }); setupDc();
+    pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => wsSend({ t: 'sig', d: { sdp: pc.localDescription } })).catch(() => {});
+  } else pc.ondatachannel = e => { dc = e.channel; setupDc(); };
+}
+function rtcStop() {
+  try { if (dc) dc.close(); } catch (e) {} try { if (pc) pc.close(); } catch (e) {}
+  pc = null; dc = null; p2p = false;
+}
+async function onSig(d) {
+  if (!d || typeof d !== 'object') return;
+  try {
+    if (d.sdp && d.sdp.type === 'offer') { if (mode !== 'guest' || spectator) return; rtcStart(false); }
+    if (!pc) return;
+    if (d.sdp) {
+      await pc.setRemoteDescription(d.sdp);
+      if (d.sdp.type === 'offer') { const a = await pc.createAnswer(); await pc.setLocalDescription(a); wsSend({ t: 'sig', d: { sdp: pc.localDescription } }); }
+    } else if (d.c) await pc.addIceCandidate(d.c);
+  } catch (e) {}
+}
+
+function onNet(m, direct) {
   switch (m.t) {
+    case 'pong': {
+      const rtt = performance.now() - num(m.c);
+      if (rtt > 0 && rtt < 3000) { srvLat = srvLat * 0.7 + (rtt / 1000) * 0.3; updateNetPill(); }
+      break;
+    }
+    case 'sig': onSig(m.d); break;
     case 'list': lobbyGames = Array.isArray(m.games) ? m.games : []; renderOpenGames(); break;
     case 'hosted': startHosting(cleanCode(m.code)); break;
     case 'welcome': startGuest(cleanCode(m.code), m.role === 'spec'); break;
     case 'err': joining = false; setOnlineNote(String(m.msg || 'No se pudo entrar.')); break;
     case 'guest': if (mode === 'host') onGuest(!!m.on); break;
-    case 'in': if (mode === 'host' && guestOn && m.p) applyGuest(m.p); break;
-    case 'g': if (mode === 'guest' && m.g) applySnap(m.g); break;
+    case 'in': if (mode === 'host' && guestOn && m.p && (direct || !p2p)) applyGuest(m.p); break;
+    case 'g': if (mode === 'guest' && m.g && (direct || !p2p)) applySnap(m.g); break;
     case 'hostLeft': if (mode === 'guest') showOver2('Se fue el anfitrión', 'El que creó el partido salió. Creá uno nuevo desde el menú.'); break;
   }
 }
@@ -1404,14 +1472,17 @@ function startGuest(c, spec) {
 function onGuest(on) {
   if (on) {
     guestOn = true; lastActSeq = 0; lastHitSeq = 0; pendingAward = null; lastSuSeq = 0; netEv.length = 0; remote.mx = remote.mz = 0;
+    rtcStart(true);
     if (state === 'waiting') { hideMsg(); if (matchStarted) { enterMatchUI(); setupServe(server); } else startMatch(); }
   } else {
+    rtcStop();
     guestOn = false; remote.mx = remote.mz = 0; NAME.C = 'Naranja'; refreshTags();
     if (state !== 'over') { state = 'waiting'; showMsg('Tu rival se fue', `Esperando que vuelva · código ${code.toUpperCase()}`, COLOR.P, true); }
   }
 }
 function leaveOnline() {
   if (isOnline()) wsSend({ t: 'leave' });
+  rtcStop();
   mode = 'ai'; myTeam = 'P'; spectator = false; guestOn = false; joining = false;
   $('netPill').hidden = true;
 }
@@ -1434,6 +1505,7 @@ function applyGuest(pr) {
   if (Array.isArray(p)) {
     ai.x = clamp(num(p[0]), -AX + 0.6, AX - 0.6); ai.z = clamp(num(p[1]), -AZ + 0.6, -0.45); ai.y = clamp(num(p[2]), 0, 2);
     ai.face = num(p[3]); ai.vx = clamp(num(p[4]), -9, 9); ai.vz = clamp(num(p[5]), -9, 9);
+    const L = lagS(); ai.x = clamp(ai.x + ai.vx * L, -AX + 0.6, AX - 0.6); ai.z = clamp(ai.z + ai.vz * L, -AZ + 0.6, -0.45);
     if (state === 'serve' && server === 'C') { ai.z = -(L + 0.7); ai.x = clamp(ai.x, -W + 0.5, W - 0.5); }
   }
   const a = pr.a;
@@ -1458,7 +1530,7 @@ function snap() {
 }
 function setFromPack(p, a, full, quietAnim) {
   if (!Array.isArray(a)) return;
-  if (full) { p.x = num(a[0]); p.z = num(a[1]); p.y = num(a[2]); p.face = num(a[3]); p.vx = num(a[4]); p.vz = num(a[5]); }
+  if (full) { const L = lagS(); p.vx = num(a[4]); p.vz = num(a[5]); p.x = num(a[0]) + p.vx * L; p.z = num(a[1]) + p.vz * L; p.y = num(a[2]); p.face = num(a[3]); }
   if (a[6] !== p.animId) { p.animId = a[6]; if (!quietAnim) { p.anim = String(a[7] || ''); p.animT = 0.32; } }
   p.superM = clamp(num(a[8]), 0, 100); p.superArmed = !!a[9];
 }
@@ -1469,7 +1541,7 @@ function applySnap(g) {
   state = g.st; server = g.sv === 'C' ? 'C' : 'P';
   if (Array.isArray(g.sc)) { score.P = num(g.sc[0]); score.C = num(g.sc[1]); }
   rally.owner = g.ro === 'C' ? 'C' : 'P'; rally.touches = num(g.rt); rally.bounces = num(g.rb); rally.direct = !!g.rd; lastHitter = g.lh === 'C' ? 'C' : g.lh === 'P' ? 'P' : null;
-  if (Array.isArray(g.b) && (num(g.hs) >= localHitSeq || performance.now() > ignoreBallUntil)) { ball.x = num(g.b[0]); ball.y = num(g.b[1]); ball.z = num(g.b[2]); ball.vx = num(g.b[3]); ball.vy = num(g.b[4]); ball.vz = num(g.b[5]); ball.super = !!g.b[6]; }
+  if (Array.isArray(g.b) && (num(g.hs) >= localHitSeq || performance.now() > ignoreBallUntil)) syncBall(g.b, g.st === 'serve');
   setFromPack(human, g.P, true);
   setFromPack(ai, g.C, spectator, !spectator && performance.now() < ignoreBallUntil);
   if (Array.isArray(g.nm)) { const a = cleanName(g.nm[0]) || 'Celeste', b = spectator ? (cleanName(g.nm[1]) || 'Naranja') : myName(); if (a !== NAME.P || b !== NAME.C) { NAME.P = a; NAME.C = b; refreshTags(); } }
@@ -1494,10 +1566,14 @@ function netTick() {
   if (t - lastSend < 33) return;
   if (mode === 'host') {
     if (!guestOn) return;
-    lastSend = t; wsSend({ t: 'g', g: snap() });
+    lastSend = t;
+    const msg = { t: 'g', g: snap() };
+    // con conexión directa, al servidor solo va una copia lenta para los que miran
+    if (!(p2p && dcSend(msg)) || t - lastSlow > 150) { wsSend(msg); lastSlow = t; }
   } else if (!spectator) {
     lastSend = t;
-    wsSend({ t: 'in', p: { i: [r2(inp.mx), r2(inp.mz)], pos: [r2(ai.x), r2(ai.z), r2(ai.y), r2(ai.face), r2(ai.vx), r2(ai.vz)], a: lastAct, h: lastHit, su: suSeq, nm: myName() } });
+    const imsg = { t: 'in', p: { i: [r2(inp.mx), r2(inp.mz)], pos: [r2(ai.x), r2(ai.z), r2(ai.y), r2(ai.face), r2(ai.vx), r2(ai.vz)], a: lastAct, h: lastHit, su: suSeq, nm: myName() } };
+    if (!(p2p && dcSend(imsg))) wsSend(imsg);
   }
 }
 

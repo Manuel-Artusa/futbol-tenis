@@ -1,0 +1,9 @@
+{
+  "name": "futbol-tenis",
+  "version": "1.0.0",
+  "description": "Fútbol tenis 3D en el navegador, contra la IA u online con un código de partido.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

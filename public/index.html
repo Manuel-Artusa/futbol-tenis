@@ -23,6 +23,7 @@
   --clay:#c97b3d;
   --good:#8be39a;
   --bad:#ff5d5d;
+  --gold:#f4c440;
   --display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
   --ui:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
   color-scheme:dark;
@@ -130,6 +131,41 @@ details>*:not(summary){margin-top:12px}
   .panel{padding:20px 18px}
 }
 body.coarse .legend{display:none}
+.tourbox{display:grid;gap:12px}
+.tourstat{display:flex;gap:10px;flex-wrap:wrap;font:600 14px/1.3 var(--ui);color:var(--muted)}
+.tourstat b{color:var(--gold);font:900 20px/1 var(--display)}
+.tourpanel{width:min(860px,100%)}
+.tourhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.tourhead>div:first-child{min-width:0}
+.cup{width:92px;flex:none}
+.cup svg{width:100%;height:auto;display:block}
+.cup.win svg{filter:drop-shadow(0 0 18px rgba(244,196,64,.55))}
+.bracketwrap{overflow-x:auto;margin-inline:-6px;padding:2px 6px 6px}
+.bracket{display:grid;grid-template-columns:repeat(3,minmax(170px,1fr));gap:14px;min-width:540px}
+.round{display:flex;flex-direction:column;gap:8px}
+.round .ms{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:10px}
+.round h3{margin:0 0 2px;font:700 12px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.mt{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.03)}
+.mt.mine{border-color:rgba(92,196,238,.6)}
+.mt.next{box-shadow:0 0 0 2px var(--celeste)}
+.pr{display:grid;grid-template-columns:8px 1fr auto;align-items:center;gap:8px;padding:7px 10px;font:600 14px/1.15 var(--ui);color:var(--muted);font-variant-numeric:tabular-nums}
+.pr+.pr{border-top:1px solid var(--line)}
+.pr i{width:8px;height:8px;border-radius:50%}
+.pr.w{color:var(--ink)}
+.pr.w b{color:var(--gold)}
+.pr b{font:900 17px/1 var(--display)}
+.pr.tbd{font-style:italic;font-weight:500}
+.pr .you{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--celeste);margin-left:6px}
+.rival{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.rival:empty{display:none}
+.rival .av{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font:900 24px/1 var(--display);color:#14110c}
+.rival .nm{font:900 28px/1 var(--display);text-transform:uppercase}
+.rival .ap{font:600 14px/1.3 var(--ui);color:var(--muted);margin-top:2px}
+.rival .stats{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rival .st{display:grid;gap:4px;font:700 11px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rival .st .track{height:6px}
+.rival .st .fill{background:var(--ink)}
+@media (max-width:520px){.rival .stats{grid-template-columns:1fr}.cup{width:64px}}
 .modeseg button{font-size:16px;padding:11px 6px}
 .online{display:grid;gap:12px}
 .joinrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
@@ -195,14 +231,19 @@ body.coarse .legend{display:none}
       <div class="eyebrow"><span class="dots"><i style="background:var(--orange)"></i><i style="background:var(--celeste)"></i></span>1 contra 1</div>
       <h1>Fútbol<br><em>Tenis</em></h1>
       <p class="lede">Dos toques y un pique por lado. Pasala por arriba de la red y que pique adentro.</p>
-      <div class="seg modeseg" id="modeSeg"><button data-m="ai">Contra la IA</button><button data-m="online">Online con un amigo</button></div>
+      <div class="seg modeseg" id="modeSeg"><button data-m="ai">Amistoso</button><button data-m="tour">Torneo</button><button data-m="online">Online</button></div>
       <div class="opts">
         <div class="opt" id="diffRow"><span>Rival</span><div class="seg" data-k="diff"><button data-v="0">Fácil</button><button data-v="1">Normal</button><button data-v="2">Difícil</button></div></div>
         <div class="opt"><span>Paredes</span><div class="seg" data-k="walls"><button data-v="1">En juego</button><button data-v="0">Son afuera</button></div><small id="wallsNote"></small></div>
-        <div class="opt"><span>Puntos</span><div class="seg" data-k="pts"><button data-v="7">a 7</button><button data-v="11">a 11</button><button data-v="21">a 21</button></div></div>
+        <div class="opt" id="ptsRow"><span>Puntos</span><div class="seg" data-k="pts"><button data-v="7">a 7</button><button data-v="11">a 11</button><button data-v="21">a 21</button></div></div>
         <div class="opt"><span>Gráficos</span><div class="seg" id="gfxSeg"><button data-g="low">Livianos</button><button data-g="high">Lindos</button></div><small>Livianos anda fluido en cualquier compu. Al cambiarlo se recarga la página.</small></div>
       </div>
       <button class="play" id="playBtn">Jugar</button>
+      <div class="tourbox" id="tourBox" hidden>
+        <p class="note">Ocho jugadores, eliminación directa. Ganale a tres rivales seguidos y te llevás la Copa de la Canchita.</p>
+        <div class="tourstat" id="tourStat"></div>
+        <div class="row"><button class="play" id="tourBtn">Empezar torneo</button><button class="ghost" id="tourNewBtn" hidden>Torneo nuevo</button></div>
+      </div>
       <div class="online" id="onlineBox" hidden>
         <button class="play" id="hostBtn">Crear partido</button>
         <div class="joinrow">
@@ -234,6 +275,22 @@ body.coarse .legend{display:none}
       <div class="row"><button class="play" id="resumeBtn">Seguir</button></div>
       <div class="row"><button class="ghost" id="restartBtn">Reiniciar</button><button class="ghost" id="menuBtn">Menú</button></div>
       <p class="note" id="pauseNote" hidden>En online el partido sigue corriendo mientras mirás este menú.</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="tour" hidden>
+    <div class="panel tourpanel">
+      <div class="tourhead">
+        <div>
+          <div class="eyebrow" id="tourEyebrow">Copa de la Canchita</div>
+          <h2 id="tourTitle">El cuadro</h2>
+          <p class="lede" id="tourLede"></p>
+        </div>
+        <div class="cup" id="tourCup" aria-hidden="true"></div>
+      </div>
+      <div class="bracketwrap"><div class="bracket" id="bracket"></div></div>
+      <div class="rival" id="rivalCard"></div>
+      <div class="row" id="tourActions"></div>
     </div>
   </div>
 
@@ -465,7 +522,7 @@ function makePlayer(shirt, shorts, skin, hair) {
     add(sh, new THREE.CylinderGeometry(0.052, 0.042, 0.5, 8), mSkin, 0, -0.3, 0);
     sh.rotation.z = 0.12 * s; arms.push(sh);
   }
-  return { root, body, torso, head, legL: legs[0], legR: legs[1], kneeL: knees[0], kneeR: knees[1], armL: arms[0], armR: arms[1] };
+  return { root, body, torso, head, legL: legs[0], legR: legs[1], kneeL: knees[0], kneeR: knees[1], armL: arms[0], armR: arms[1], mats: { mShirt, mShort, mSkin, mHair } };
 }
 function makeRing(color) {
   const g = new THREE.Group();
@@ -479,6 +536,14 @@ function makeRing(color) {
 function newPlayer(team, model, ring) { return { team, model, ring, x: 0, z: 0, y: 0, vx: 0, vz: 0, vy: 0, face: 0, phase: 0, anim: null, animT: 0, cool: 0, charge: 0, stamina: 1, superM: 0, superArmed: false, buf: null, tx: 0, tz: 0 }; }
 const human = newPlayer('P', makePlayer(0x5cc4ee, 0x1d3b57, 0xd9a882, 0x2a1b12), makeRing(0x5cc4ee));
 const ai = newPlayer('C', makePlayer(0xff8a3d, 0x4a1f0c, 0xb9805a, 0x15100c), makeRing(0xff8a3d));
+const DEFAULT_KIT = { shirt: 0xff8a3d, shorts: 0x4a1f0c, skin: 0xb9805a, hair: 0x15100c, css: '#ff8a3d', name: 'Naranja' };
+const TEAM_HEX = { P: 0x5cc4ee, C: 0xff8a3d };
+function setKit(kit) {
+  const m = ai.model.mats;
+  m.mShirt.color.setHex(kit.shirt); m.mShort.color.setHex(kit.shorts); m.mSkin.color.setHex(kit.skin); m.mHair.color.setHex(kit.hair);
+  TEAM_HEX.C = kit.shirt; COLOR.C = kit.css; NAME.C = kit.name;
+  const tag = document.querySelector('.tag.or'); if (tag) tag.style.background = kit.css;
+}
 human.animId = 0; ai.animId = 0; human.rx = 0; human.rz = 0; ai.rx = 0; ai.rz = 0;
 ai.planAt = 0; ai.leave = false; ai.leaveFor = -1; ai.lastType = ''; ai.serveAt = 0;
 
@@ -654,7 +719,8 @@ function showServeMsg(s) {
   else if (isOnline()) showMsg(`Saca ${NAME[s]}`, '', COLOR[s]);
   else hideMsg();
 }
-function isOver() { for (const t of ['P', 'C']) if (score[t] >= opt.pts && score[t] - score[other(t)] >= 2) return t; return null; }
+function matchPts() { return tourMode ? TOUR_PTS[tour.round] : opt.pts; }
+function isOver() { const pts = matchPts(); for (const t of ['P', 'C']) if (score[t] >= pts && score[t] - score[other(t)] >= 2) return t; return null; }
 
 function setupServe(s) {
   state = 'serve'; stateT = 0; server = s;
@@ -676,7 +742,7 @@ function enterMatchUI() {
   $('restartBtn').hidden = isOnline(); $('pauseNote').hidden = !isOnline();
   $('netPill').hidden = !isOnline();
   setTxt('nmP', 'Celeste' + (myTeam === 'P' && !spectator ? ' · vos' : ''));
-  setTxt('nmC', 'Naranja' + (myTeam === 'C' && !spectator ? ' · vos' : ''));
+  setTxt('nmC', NAME.C + (myTeam === 'C' && !spectator ? ' · vos' : ''));
 }
 function startMatch() {
   score.P = score.C = 0;
@@ -886,14 +952,15 @@ function aiHit(D) {
   let tx = (human.x > 0 ? -1 : 1) * (W - 1.0) * (0.45 + Math.random() * 0.55);
   if (Math.random() < 0.25) tx = -tx * 0.5;
   const tz = type === 'corto' ? 2.4 : type === 'globo' ? L - 1.4 : (human.z < 4 ? L - 1.4 : (Math.random() < 0.55 ? L - 1.5 : 4.5));
-  let err = D.err * (type === 'remate' ? 1.15 : 1);
+  let err = D.err * (type === 'remate' ? 1.15 : type === 'super' ? 0.8 : 1);
   if (Math.random() < D.whiff) err *= 2.8;
-  const charge = type === 'remate' ? 0.35 + Math.random() * 0.65 * (0.5 + opt.diff / 4) : 0;
+  const charge = type === 'remate' ? 0.35 + Math.random() * 0.65 * (D.power ?? (0.5 + opt.diff / 4)) : 0;
+  if (D.superP && type !== 'setup' && Math.random() < D.superP) type = 'super';
   ai.lastType = type;
   tryHit('C', type, tx, tz, charge, err);
 }
 function updateAI(dt) {
-  const D = DIFF[opt.diff];
+  const D = curAI();
   if (state === 'serve') {
     if (server === 'C') {
       ai.z = -(L + 0.7); ai.face = 0;
@@ -1021,7 +1088,7 @@ function render(dt) {
     if (hit && hit.z * vs > 0) {
       landRing.visible = true; landRing.position.set(hit.x, 0.02, hit.z);
       const out = !inCourt(hit.x, hit.z) && (rally.owner !== myTeam || rally.direct || lastHitter === other(myTeam));
-      landRing.material.color.setHex(out ? 0xff4d4d : (myTeam === 'P' ? 0x5cc4ee : 0xff8a3d));
+      landRing.material.color.setHex(out ? 0xff4d4d : TEAM_HEX[myTeam]);
       landRing.scale.setScalar(1 + 0.12 * Math.sin(now * 10));
     }
   }
@@ -1031,7 +1098,7 @@ function render(dt) {
     const reach = mode === 'guest' ? 1.4 : 1.25;
     const reachable = mine && state === 'play' && rally.owner === p.team && Math.hypot(ball.x - p.x, ball.z - p.z) < reach && ball.y < 2.15 + p.y && ball.z * (p.team === 'P' ? 1 : -1) > -0.15;
     p.ring.glow.material.opacity = reachable ? 0.28 : 0;
-    p.ring.r.material.color.setHex(p.superArmed ? 0xffd166 : (p.team === 'P' ? 0x5cc4ee : 0xff8a3d));
+    p.ring.r.material.color.setHex(p.superArmed ? 0xffd166 : TEAM_HEX[p.team]);
     p.ring.r.scale.setScalar(p.superArmed ? 1 + 0.1 * Math.sin(now * 14) : 1);
   }
   // camera
@@ -1127,6 +1194,7 @@ function resumeGame() {
 }
 function endMatch(w) {
   state = 'over';
+  if (tourMode) { tourMatchDone(w); return; }
   showOver(w);
 }
 function showOver(w) {
@@ -1147,7 +1215,8 @@ function toMenu() {
   ball.x = 0; ball.y = 0.11; ball.z = 3; ball.vx = ball.vy = ball.vz = 0; ball.super = false;
   human.x = 0; human.z = 6; ai.x = 0; ai.z = -6; human.face = Math.PI; ai.face = 0;
   human.superArmed = ai.superArmed = false;
-  renderOpenGames();
+  tourMode = false; setKit(DEFAULT_KIT); $('tour').hidden = true;
+  renderOpenGames(); renderTourBox();
 }
 
 const LEG_KEYS = [['WASD', 'Mover / apuntar'], ['Shift', 'Sprint'], ['Espacio', 'Saltar'], ['J', 'Golpe'], ['K', 'Pase'], ['L', 'Globo'], ['I', 'Remate (mantener)'], ['U', 'Súper'], ['P', 'Pausa']];
@@ -1343,6 +1412,188 @@ function netTick() {
   }
 }
 
+// ---------- Torneo ----------
+// Rivales inventados, de menor a mayor nivel. ai: mismos parámetros que DIFF.
+const ROSTER = [
+  { id: 'vos', name: 'Vos', nick: 'Celeste', css: '#5cc4ee', rating: 2.6 },
+  { id: 'quique', name: 'Quique', full: 'Quique Barrios', nick: '"El Paciente". Juega lento y la tira por arriba todo el tiempo.', css: '#5bbf62', rating: 1.0,
+    kit: { shirt: 0x5bbf62, shorts: 0x1f3d22, skin: 0xe0b48e, hair: 0x6b4a2b },
+    ai: { speed: 3.9, react: 0.42, reach: 1.05, reachH: 1.9, err: 0.6, whiff: 0.08, smash: 0.0, setup: 0.0, lob: 0.6, drop: 0.05, iq: 0.7, jump: false, power: 0.3 },
+    bars: [0.35, 0.6, 0.2] },
+  { id: 'nacho', name: 'Nacho', full: 'Nacho Ledesma', nick: '"Pulmón". Corre todo, pero le pega a cualquier lado.', css: '#f2c94c', rating: 1.5,
+    kit: { shirt: 0xf2c94c, shorts: 0x2a3550, skin: 0xc8946a, hair: 0x1a120c },
+    ai: { speed: 5.6, react: 0.3, reach: 1.05, reachH: 1.95, err: 1.0, whiff: 0.1, smash: 0.2, setup: 0.0, lob: 0.15, drop: 0.1, iq: 0.6, jump: true, power: 0.5 },
+    bars: [0.85, 0.25, 0.4] },
+  { id: 'tota', name: 'Tota', full: 'Tota Gómez', nick: '"La Zurda". Te deja la pelota cortita contra la red.', css: '#a07ae0', rating: 2.4,
+    kit: { shirt: 0xa07ae0, shorts: 0x2b1d45, skin: 0xd9a882, hair: 0x2d1a10 },
+    ai: { speed: 4.7, react: 0.25, reach: 1.1, reachH: 2.0, err: 0.55, whiff: 0.05, smash: 0.3, setup: 0.1, lob: 0.25, drop: 0.55, iq: 0.85, jump: true, power: 0.55 },
+    bars: [0.55, 0.65, 0.45] },
+  { id: 'rulo', name: 'Rulo', full: 'Rulo Medina', nick: '"El Cañón". Se la levanta solo y la clava de remate.', css: '#ef5350', rating: 2.6,
+    kit: { shirt: 0xef5350, shorts: 0x111318, skin: 0xb9805a, hair: 0x0e0b08 },
+    ai: { speed: 4.8, react: 0.25, reach: 1.15, reachH: 2.1, err: 0.75, whiff: 0.06, smash: 0.9, setup: 0.45, lob: 0.1, drop: 0.05, iq: 0.75, jump: true, power: 1.0 },
+    bars: [0.55, 0.45, 0.95] },
+  { id: 'facu', name: 'Facu', full: 'Facu Ríos', nick: '"El Muro". Llega a todas y no regala nada.', css: '#dfe3ea', rating: 2.9,
+    kit: { shirt: 0xdfe3ea, shorts: 0x2c3a52, skin: 0xe8c39e, hair: 0x8a6a3a },
+    ai: { speed: 5.0, react: 0.2, reach: 1.35, reachH: 2.25, err: 0.5, whiff: 0.03, smash: 0.4, setup: 0.1, lob: 0.3, drop: 0.15, iq: 0.92, jump: true, power: 0.6 },
+    bars: [0.65, 0.7, 0.55] },
+  { id: 'chino', name: 'Chino', full: 'Chino Vera', nick: '"El Mago". Tiene un tiro de fuego que no se ve venir.', css: '#ff6fa8', rating: 3.6,
+    kit: { shirt: 0xff6fa8, shorts: 0x3a1024, skin: 0xd8b088, hair: 0x101010 },
+    ai: { speed: 5.4, react: 0.16, reach: 1.2, reachH: 2.15, err: 0.4, whiff: 0.03, smash: 0.55, setup: 0.3, lob: 0.3, drop: 0.3, iq: 0.92, jump: true, power: 0.8, superP: 0.07 },
+    bars: [0.75, 0.8, 0.75] },
+  { id: 'ramon', name: 'Don Ramón', full: 'Don Ramón Peralta', nick: '"El Campeón". Ganó las últimas cuatro copas. Hay que bajarlo.', css: '#f4c440', rating: 4.2,
+    kit: { shirt: 0xf4c440, shorts: 0x15161b, skin: 0xc49a74, hair: 0xb8b8b8 },
+    ai: { speed: 5.9, react: 0.12, reach: 1.28, reachH: 2.2, err: 0.32, whiff: 0.015, smash: 0.75, setup: 0.35, lob: 0.3, drop: 0.25, iq: 0.96, jump: true, power: 0.9, superP: 0.04 },
+    bars: [0.9, 0.9, 0.85] },
+];
+const ROUND_NAMES = ['Cuartos de final', 'Semifinal', 'Final'];
+const ROUND_SHORT = ['Cuartos', 'Semis', 'Final'];
+const TOUR_PTS = [5, 7, 7];
+let tourMode = false, tour = null, rivalIdx = 1;
+function curAI() { return tourMode ? ROSTER[rivalIdx].ai : DIFF[opt.diff]; }
+function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && Array.isArray(t.m) && t.m.length === 7) tour = t; } catch (e) {} }
+function saveTour() { try { localStorage.setItem('ft-tour', JSON.stringify(tour)); } catch (e) {} }
+function trophies() { try { return +(localStorage.getItem('ft-trophies') || 0); } catch (e) { return 0; } }
+function addTrophy() { try { localStorage.setItem('ft-trophies', String(trophies() + 1)); } catch (e) {} }
+loadTour();
+function newTournament() {
+  // cuadro: QF [vos-Quique] [Nacho-Tota] [Rulo-Facu] [Chino-Ramón]; SF ganadores 0-1 y 2-3; final
+  tour = { round: 0, out: false, done: false, champ: false, last: null, m: [
+    { a: 0, b: 1 }, { a: 2, b: 3 }, { a: 4, b: 5 }, { a: 6, b: 7 }, { a: null, b: null }, { a: null, b: null }, { a: null, b: null } ] };
+  saveTour();
+}
+function P(i) { return ROSTER[i]; }
+const roundOf = mi => mi < 4 ? 0 : mi < 6 ? 1 : 2;
+function myMatchIndex() { return tour.m.findIndex((m, i) => roundOf(i) === tour.round && (m.a === 0 || m.b === 0) && m.w == null); }
+function simMatch(m, pts) {
+  const ra = P(m.a).rating ** 2, rb = P(m.b).rating ** 2;
+  const aw = Math.random() < ra / (ra + rb);
+  let lose = Math.floor(Math.random() * pts);
+  let win = pts; if (lose >= pts - 1) win = lose + 2;
+  m.w = aw ? m.a : m.b; m.sa = aw ? win : lose; m.sb = aw ? lose : win;
+}
+function advance() {
+  const r = tour.round, pts = TOUR_PTS[r];
+  const idx = r === 0 ? [0, 1, 2, 3] : r === 1 ? [4, 5] : [6];
+  for (const i of idx) if (tour.m[i].w == null) simMatch(tour.m[i], pts);
+  if (r === 0) { tour.m[4] = { a: tour.m[0].w, b: tour.m[1].w }; tour.m[5] = { a: tour.m[2].w, b: tour.m[3].w }; }
+  if (r === 1) { tour.m[6] = { a: tour.m[4].w, b: tour.m[5].w }; }
+  if (r === 2) tour.done = true; else tour.round++;
+}
+function finishTournamentAfterLoss() { while (!tour.done) advance(); }
+function playNextTourMatch() {
+  const mi = myMatchIndex(); if (mi < 0) return;
+  const m = tour.m[mi]; const opp = m.a === 0 ? m.b : m.a;
+  rivalIdx = opp;
+  const R = ROSTER[rivalIdx];
+  tourMode = true; mode = 'ai'; myTeam = 'P';
+  setKit(Object.assign({ css: R.css, name: R.name }, R.kit));
+  $('tour').hidden = true;
+  startMatch();
+  showMsg(R.full, `${ROUND_NAMES[tour.round]} · a ${TOUR_PTS[tour.round]} puntos`, R.css);
+  setTimeout(() => { if (state === 'serve' && server === 'P' && tourMode) showServeMsg('P'); }, 1900);
+}
+function tourMatchDone(w) {
+  const mi = myMatchIndex(); if (mi < 0) return;
+  const m = tour.m[mi]; const youA = m.a === 0;
+  m.w = w === 'P' ? 0 : (youA ? m.b : m.a);
+  m.sa = youA ? score.P : score.C; m.sb = youA ? score.C : score.P;
+  const roundPlayed = tour.round;
+  tour.last = { won: w === 'P', round: roundPlayed, p: score.P, c: score.C, rival: rivalIdx };
+  if (w === 'P') { advance(); if (tour.done) { tour.champ = true; addTrophy(); } }
+  else { tour.out = true; finishTournamentAfterLoss(); }
+  saveTour();
+  $('touch').hidden = true; hideMsg();
+  setTimeout(() => { inMatch = false; $('hud').hidden = true; showBracket(); }, 300);
+  if (w === 'P') { sfx.crowd(true); } 
+}
+const CUP_SVG = `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="cupg" x1="0" x2="1"><stop offset="0" stop-color="#b8861c"/><stop offset=".45" stop-color="#ffe08a"/><stop offset="1" stop-color="#c8951f"/></linearGradient></defs>
+  <path d="M22 10h56v22c0 20-12 34-28 36C34 66 22 52 22 32z" fill="url(#cupg)"/>
+  <path d="M22 16H10c0 16 6 26 16 28M78 16h12c0 16-6 26-16 28" fill="none" stroke="url(#cupg)" stroke-width="6" stroke-linecap="round"/>
+  <rect x="45" y="67" width="10" height="16" fill="url(#cupg)"/>
+  <path d="M32 84h36l4 12H28z" fill="url(#cupg)"/>
+  <rect x="24" y="96" width="52" height="14" rx="3" fill="#2a2f3c"/>
+  <rect x="34" y="100" width="32" height="6" rx="1.5" fill="#f4c440" opacity=".85"/>
+  <path d="M50 22l3.5 7.2 7.9 1.1-5.7 5.6 1.4 7.9L50 40l-7.1 3.8 1.4-7.9-5.7-5.6 7.9-1.1z" fill="#fff6d0"/>
+</svg>`;
+function renderTourBox() {
+  const n = trophies();
+  const st = $('tourStat'); if (!st) return;
+  st.textContent = '';
+  const add = (big, txt) => { const sp = document.createElement('span'); const b = document.createElement('b'); b.textContent = big; sp.append(b, document.createTextNode(' ' + txt)); st.append(sp); };
+  add(String(n), n === 1 ? 'copa ganada' : 'copas ganadas');
+  const live = tour && !tour.done && !tour.out;
+  if (live) add(ROUND_SHORT[tour.round], 'es tu próximo partido');
+  $('tourBtn').textContent = live ? 'Seguir torneo' : 'Empezar torneo';
+  $('tourNewBtn').hidden = !live;
+}
+function showBracket() {
+  if (!tour) newTournament();
+  $('menu').hidden = true; $('over').hidden = true; $('hud').hidden = true; $('touch').hidden = true;
+  inMatch = false; state = 'menu';
+  const t = tour, last = t.last;
+  // encabezado
+  let eyebrow = 'Copa de la Canchita', title = 'El cuadro', lede = '';
+  if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${ROSTER[last ? last.rival : 7].full} en la final. La copa es tuya.`; }
+  else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[6].w).id === 'vos' ? 'vos' : P(t.m[6].w).full}.`; }
+  else if (last && last.won) { title = `Pasás a ${t.round === 1 ? 'semis' : 'la final'}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
+  else { lede = 'Eliminación directa: cuartos a 5 puntos, semis y final a 7. Siempre con 2 de diferencia.'; }
+  $('tourEyebrow').textContent = eyebrow; $('tourTitle').textContent = title; $('tourTitle').style.color = t.champ ? 'var(--gold)' : t.out ? 'var(--ink)' : 'var(--ink)';
+  $('tourLede').textContent = lede;
+  $('tourCup').innerHTML = CUP_SVG; $('tourCup').classList.toggle('win', !!t.champ); $('tourCup').style.opacity = t.out ? 0.35 : 1;
+  // cuadro
+  const br = $('bracket'); br.textContent = '';
+  const next = (!t.done && !t.out) ? myMatchIndex() : -1;
+  [[0, 1, 2, 3], [4, 5], [6]].forEach((ids, r) => {
+    const col = document.createElement('div'); col.className = 'round';
+    const h = document.createElement('h3'); h.textContent = `${ROUND_NAMES[r]} · a ${TOUR_PTS[r]}`; const ms = document.createElement('div'); ms.className = 'ms'; col.append(h, ms);
+    for (const i of ids) {
+      const m = t.m[i]; const box = document.createElement('div');
+      box.className = 'mt' + ((m.a === 0 || m.b === 0) ? ' mine' : '') + (i === next ? ' next' : '');
+      for (const [pi, sc] of [[m.a, m.sa], [m.b, m.sb]]) {
+        const row = document.createElement('div'); row.className = 'pr';
+        const dot = document.createElement('i'); const nm = document.createElement('span'); const b = document.createElement('b');
+        if (pi == null) { row.classList.add('tbd'); dot.style.background = 'var(--line)'; nm.textContent = 'A definir'; }
+        else {
+          const pl = P(pi); dot.style.background = pl.css; nm.textContent = pl.id === 'vos' ? 'Vos' : pl.full;
+          if (m.w != null && m.w === pi) row.classList.add('w');
+          if (sc != null) b.textContent = sc;
+        }
+        row.append(dot, nm, b); box.append(row);
+      }
+      ms.append(box);
+    }
+    br.append(col);
+  });
+  // rival
+  const rc = $('rivalCard'); rc.textContent = '';
+  if (next >= 0) {
+    const m = t.m[next]; const R = P(m.a === 0 ? m.b : m.a);
+    const av = document.createElement('div'); av.className = 'av'; av.style.background = R.css; av.textContent = R.name[0];
+    const info = document.createElement('div');
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = R.full; nm.style.color = R.css;
+    const ap = document.createElement('div'); ap.className = 'ap'; ap.textContent = R.nick;
+    info.append(nm, ap);
+    const stats = document.createElement('div'); stats.className = 'stats';
+    ['Velocidad', 'Puntería', 'Potencia'].forEach((lab, k) => {
+      const st = document.createElement('div'); st.className = 'st'; st.textContent = lab;
+      const tr = document.createElement('div'); tr.className = 'track'; const f = document.createElement('div'); f.className = 'fill'; f.style.width = Math.round(R.bars[k] * 100) + '%'; f.style.background = R.css;
+      tr.append(f); st.append(tr); stats.append(st);
+    });
+    rc.append(av, info, stats);
+  }
+  // botones
+  const act = $('tourActions'); act.textContent = '';
+  const btn = (txt, cls, fn) => { const b = document.createElement('button'); b.className = cls; b.textContent = txt; b.addEventListener('click', fn); act.append(b); return b; };
+  let first;
+  if (next >= 0) first = btn(`Jugar ${ROUND_SHORT[t.round].toLowerCase() === 'final' ? 'la final' : ROUND_SHORT[t.round].toLowerCase()}`, 'play', () => { initAudio(); playNextTourMatch(); });
+  else first = btn('Torneo nuevo', 'play', () => { newTournament(); showBracket(); });
+  btn('Menú', 'ghost', () => { $('tour').hidden = true; toMenu(); });
+  $('tour').hidden = false;
+  if (t.champ) { sfx.whistle(); sfx.crowd(true); }
+  first.focus();
+}
+
 // menu options
 let menuMode = 'ai';
 function syncOpts() {
@@ -1350,6 +1601,8 @@ function syncOpts() {
   document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === menuMode));
   $('diffRow').hidden = menuMode !== 'ai';
   $('playBtn').hidden = menuMode !== 'ai';
+  $('ptsRow').hidden = menuMode === 'tour';
+  $('tourBox').hidden = menuMode !== 'tour';
   $('onlineBox').hidden = menuMode !== 'online';
   $('wallsNote').textContent = opt.walls ? 'La pelota rebota en las paredes y sigue en juego.' : 'Si la pelota pega en la pared sin picar adentro, es punto.';
 }
@@ -1360,7 +1613,9 @@ document.querySelectorAll('#gfxSeg button').forEach(b => {
   b.addEventListener('click', () => { if (b.dataset.g === GFX) return; try { localStorage.setItem('ft-gfx', b.dataset.g); } catch (e) {} location.reload(); });
 });
 syncOpts();
-$('playBtn').addEventListener('click', () => { initAudio(); mode = 'ai'; myTeam = 'P'; startMatch(); $('playBtn').blur(); });
+$('playBtn').addEventListener('click', () => { initAudio(); mode = 'ai'; myTeam = 'P'; tourMode = false; setKit(DEFAULT_KIT); startMatch(); $('playBtn').blur(); });
+$('tourBtn').addEventListener('click', () => { initAudio(); if (!tour || tour.done) newTournament(); showBracket(); });
+$('tourNewBtn').addEventListener('click', () => { initAudio(); newTournament(); showBracket(); });
 $('hostBtn').addEventListener('click', hostGame);
 $('joinBtn').addEventListener('click', () => joinGame($('codeIn').value));
 $('codeIn').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') joinGame($('codeIn').value); });
@@ -1412,6 +1667,7 @@ const sfx = {
 
 // start
 toMenu();
+renderTourBox();
 requestAnimationFrame(frame);
 })();
 </script>

@@ -141,7 +141,7 @@ body.coarse .legend{display:none}
 .cup svg{width:100%;height:auto;display:block}
 .cup.win svg{filter:drop-shadow(0 0 18px rgba(244,196,64,.55))}
 .bracketwrap{overflow-x:auto;margin-inline:-6px;padding:2px 6px 6px}
-.bracket{display:grid;grid-template-columns:repeat(3,minmax(170px,1fr));gap:14px;min-width:540px}
+.bracket{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px;min-width:720px}
 .round{display:flex;flex-direction:column;gap:8px}
 .round .ms{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:10px}
 .round h3{margin:0 0 2px;font:700 12px/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -240,7 +240,7 @@ body.coarse .legend{display:none}
       </div>
       <button class="play" id="playBtn">Jugar</button>
       <div class="tourbox" id="tourBox" hidden>
-        <p class="note">Ocho jugadores, eliminación directa. Ganale a tres rivales seguidos y te llevás la Copa de la Canchita.</p>
+        <p class="note">Dieciséis jugadores, eliminación directa y cuadro sorteado cada vez. Ganale a cuatro rivales seguidos y te llevás la Copa LD.</p>
         <div class="tourstat" id="tourStat"></div>
         <div class="row"><button class="play" id="tourBtn">Empezar torneo</button><button class="ghost" id="tourNewBtn" hidden>Torneo nuevo</button></div>
       </div>
@@ -282,7 +282,7 @@ body.coarse .legend{display:none}
     <div class="panel tourpanel">
       <div class="tourhead">
         <div>
-          <div class="eyebrow" id="tourEyebrow">Copa de la Canchita</div>
+          <div class="eyebrow" id="tourEyebrow">Copa LD</div>
           <h2 id="tourTitle">El cuadro</h2>
           <p class="lede" id="tourLede"></p>
         </div>
@@ -1457,28 +1457,38 @@ const ROSTER = [
     'El que hay que bajar. Rápido, preciso y con un remate que asusta.', { superP: 0.04 }),
   mkRival('huevo', 'Pedro', 'El Huevo', 'Willner', 'Huevo', '#b07a4f', 0xb07a4f, 0x2a1a0e, 0xe8c39e, 0x4a3020, 2.2, 0.4,
     'Paciente: devuelve todo y espera que te equivoques vos.', { err: 0.4, smash: 0.2, lob: 0.45, iq: 0.92 }),
+  mkRival('bolo', 'Fabri', 'El Bolo', 'Lucero', 'Bolo', '#7d8cff', 0x7d8cff, 0x1c2350, 0xd9a882, 0x1a120c, 2.3, 0.4,
+    'No es el más rápido, pero cuando le pega, la pelota sale como un tiro.', { speed: 4.3, power: 1.0, smash: 0.75, setup: 0.3 }),
+  mkRival('tataaa', 'Tatiana', 'Tataaa', 'Wagner', 'Tataaa', '#9be3c3', 0x9be3c3, 0x1d3d33, 0xe8c39e, 0x6b3a1e, 2.7, 0.55,
+    'Rapidísima y picante: te mueve de un lado al otro con globos y cortitas.', { speed: 5.5, drop: 0.4, lob: 0.4 }),
+  mkRival('juancho', 'Juan', 'Juancho LD', 'Pérez', 'Juancho', '#8e9bb0', 0x8e9bb0, 0x1b2230, 0xc8946a, 0x0e0b08, 3.0, 0.62,
+    'Ordenado y preciso: devuelve todo y te castiga el primer error.', { err: 0.36, iq: 0.95, whiff: 0.02 }),
 ];
-const ROUND_NAMES = ['Cuartos de final', 'Semifinal', 'Final'];
-const ROUND_SHORT = ['Cuartos', 'Semis', 'Final'];
-const TOUR_PTS = [5, 7, 7];
+const ROUND_NAMES = ['Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'];
+const ROUND_SHORT = ['Octavos', 'Cuartos', 'Semis', 'Final'];
+const ROUND_PLAY = ['octavos', 'cuartos', 'semis', 'la final'];
+const TOUR_PTS = [5, 5, 7, 7];
+// índices de partidos por ronda: 8 de octavos, 4 de cuartos, 2 semis, 1 final
+const ROUND_IDX = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11], [12, 13], [14]];
 let tourMode = false, tour = null, rivalIdx = 1;
 function curAI() { return tourMode ? ROSTER[rivalIdx].ai : DIFF[opt.diff]; }
-function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && t.v === 2 && Array.isArray(t.m) && t.m.length === 7) tour = t; } catch (e) {} }
+function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && t.v === 3 && Array.isArray(t.m) && t.m.length === 15 && t.m.every(m => m.a == null || ROSTER[m.a])) tour = t; } catch (e) {} }
 function saveTour() { try { localStorage.setItem('ft-tour', JSON.stringify(tour)); } catch (e) {} }
 function trophies() { try { return +(localStorage.getItem('ft-trophies') || 0); } catch (e) { return 0; } }
 function addTrophy() { try { localStorage.setItem('ft-trophies', String(trophies() + 1)); } catch (e) {} }
 loadTour();
 function newTournament() {
-  // se sortean 7 rivales; el más flojo te toca en cuartos y el más fuerte queda del otro lado del cuadro
-  const pool = ROSTER.map((r, i) => i).slice(1).sort(() => Math.random() - 0.5).slice(0, 7);
-  const r = pool.sort((a, b) => ROSTER[a].rating - ROSTER[b].rating);
-  tour = { v: 2, round: 0, out: false, done: false, champ: false, last: null, m: [
-    { a: 0, b: r[0] }, { a: r[3], b: r[4] }, { a: r[1], b: r[5] }, { a: r[2], b: r[6] },
-    { a: null, b: null }, { a: null, b: null }, { a: null, b: null } ] };
+  // sorteo completo: los 16 (vos incluido) caen en cualquier lugar del cuadro, así que cada torneo es distinto
+  const ids = ROSTER.map((r, i) => i).slice(0, 16);
+  for (let i = ids.length - 1; i > 0; i--) { const k = Math.floor(Math.random() * (i + 1)); [ids[i], ids[k]] = [ids[k], ids[i]]; }
+  const m = [];
+  for (let k = 0; k < 8; k++) m.push({ a: ids[2 * k], b: ids[2 * k + 1] });
+  for (let k = 8; k < 15; k++) m.push({ a: null, b: null });
+  tour = { v: 3, round: 0, out: false, done: false, champ: false, last: null, m };
   saveTour();
 }
 function P(i) { return ROSTER[i]; }
-const roundOf = mi => mi < 4 ? 0 : mi < 6 ? 1 : 2;
+const roundOf = mi => mi < 8 ? 0 : mi < 12 ? 1 : mi < 14 ? 2 : 3;
 function myMatchIndex() { return tour.m.findIndex((m, i) => roundOf(i) === tour.round && (m.a === 0 || m.b === 0) && m.w == null); }
 function simMatch(m, pts) {
   const ra = P(m.a).rating ** 2, rb = P(m.b).rating ** 2;
@@ -1489,11 +1499,10 @@ function simMatch(m, pts) {
 }
 function advance() {
   const r = tour.round, pts = TOUR_PTS[r];
-  const idx = r === 0 ? [0, 1, 2, 3] : r === 1 ? [4, 5] : [6];
+  const idx = ROUND_IDX[r];
   for (const i of idx) if (tour.m[i].w == null) simMatch(tour.m[i], pts);
-  if (r === 0) { tour.m[4] = { a: tour.m[0].w, b: tour.m[1].w }; tour.m[5] = { a: tour.m[2].w, b: tour.m[3].w }; }
-  if (r === 1) { tour.m[6] = { a: tour.m[4].w, b: tour.m[5].w }; }
-  if (r === 2) tour.done = true; else tour.round++;
+  if (r < 3) ROUND_IDX[r + 1].forEach((ni, k) => { tour.m[ni] = { a: tour.m[idx[2 * k]].w, b: tour.m[idx[2 * k + 1]].w }; });
+  if (r === 3) tour.done = true; else tour.round++;
 }
 function finishTournamentAfterLoss() { while (!tour.done) advance(); }
 function playNextTourMatch() {
@@ -1549,18 +1558,18 @@ function showBracket() {
   inMatch = false; state = 'menu';
   const t = tour, last = t.last;
   // encabezado
-  let eyebrow = 'Copa de la Canchita', title = 'El cuadro', lede = '';
+  let eyebrow = 'Copa LD', title = 'El cuadro', lede = '';
   if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya.`; }
-  else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[6].w).id === 'vos' ? 'vos' : P(t.m[6].w).full}.`; }
-  else if (last && last.won) { title = `Pasás a ${t.round === 1 ? 'semis' : 'la final'}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
-  else { lede = 'Eliminación directa: cuartos a 5 puntos, semis y final a 7. Siempre con 2 de diferencia.'; }
+  else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[14].w).full}.`; }
+  else if (last && last.won) { title = `Pasás a ${ROUND_PLAY[t.round]}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
+  else { lede = 'Dieciséis jugadores y el cuadro se sortea cada vez. Octavos y cuartos a 5 puntos, semis y final a 7, siempre con 2 de diferencia.'; }
   $('tourEyebrow').textContent = eyebrow; $('tourTitle').textContent = title; $('tourTitle').style.color = t.champ ? 'var(--gold)' : t.out ? 'var(--ink)' : 'var(--ink)';
   $('tourLede').textContent = lede;
   $('tourCup').innerHTML = CUP_SVG; $('tourCup').classList.toggle('win', !!t.champ); $('tourCup').style.opacity = t.out ? 0.35 : 1;
   // cuadro
   const br = $('bracket'); br.textContent = '';
   const next = (!t.done && !t.out) ? myMatchIndex() : -1;
-  [[0, 1, 2, 3], [4, 5], [6]].forEach((ids, r) => {
+  ROUND_IDX.forEach((ids, r) => {
     const col = document.createElement('div'); col.className = 'round';
     const h = document.createElement('h3'); h.textContent = `${ROUND_NAMES[r]} · a ${TOUR_PTS[r]}`; const ms = document.createElement('div'); ms.className = 'ms'; col.append(h, ms);
     for (const i of ids) {
@@ -1602,7 +1611,7 @@ function showBracket() {
   const act = $('tourActions'); act.textContent = '';
   const btn = (txt, cls, fn) => { const b = document.createElement('button'); b.className = cls; b.textContent = txt; b.addEventListener('click', fn); act.append(b); return b; };
   let first;
-  if (next >= 0) first = btn(`Jugar ${ROUND_SHORT[t.round].toLowerCase() === 'final' ? 'la final' : ROUND_SHORT[t.round].toLowerCase()}`, 'play', () => { initAudio(); playNextTourMatch(); });
+  if (next >= 0) first = btn(`Jugar ${ROUND_PLAY[t.round]}`, 'play', () => { initAudio(); playNextTourMatch(); });
   else first = btn('Torneo nuevo', 'play', () => { newTournament(); showBracket(); });
   btn('Menú', 'ghost', () => { $('tour').hidden = true; toMenu(); });
   $('tour').hidden = false;

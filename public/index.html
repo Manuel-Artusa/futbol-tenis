@@ -132,6 +132,19 @@ details>*:not(summary){margin-top:12px}
 }
 body.coarse .legend{display:none}
 .tourbox{display:grid;gap:12px}
+
+.namein{min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:700 18px/1 var(--ui);padding:9px 12px}
+.namein:focus-visible{outline:2px solid var(--celeste);outline-offset:1px}
+.champs{display:grid;gap:6px;max-height:min(52vh,460px);overflow:auto;padding-right:2px}
+.ch{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:rgba(255,255,255,.03)}
+.ch.me{border-color:rgba(244,196,64,.55)}
+.ch .pos{font:900 20px/1 var(--display);color:var(--gold);text-align:center}
+.ch .who{min-width:0}
+.ch .who b{display:block;font:900 22px/1.05 var(--display);text-transform:uppercase;overflow-wrap:anywhere}
+.ch .who span{display:block;font:500 13px/1.3 var(--ui);color:var(--muted);margin-top:3px}
+.ch .dif{font:700 12px/1 var(--ui);letter-spacing:.08em;text-transform:uppercase;padding:6px 9px;border-radius:6px;color:#12100c;white-space:nowrap}
+.dif.d0{background:#8be39a}.dif.d1{background:#f2c94c}.dif.d2{background:#ff6b6b}
+.champs:empty::after{content:'Todavía no ganó nadie. Ganá la Copa LD y guardá tu nombre acá.';font:500 15px/1.4 var(--ui);color:var(--muted)}
 .tourstat{display:flex;gap:10px;flex-wrap:wrap;font:600 14px/1.3 var(--ui);color:var(--muted)}
 .tourstat b{color:var(--gold);font:900 20px/1 var(--display)}
 .tourpanel{width:min(860px,100%)}
@@ -203,7 +216,6 @@ body.coarse .legend{display:none}
     <div class="poss" id="poss"><i id="possBar"></i><span id="possTxt">Saque Celeste</span></div>
     <div class="msg" id="msg"><div class="big" id="msgBig"></div><div class="small" id="msgSmall"></div></div>
     <div class="bars">
-      <div class="bar"><label>Sprint</label><div class="track"><div class="fill" id="bSprint"></div></div></div>
       <div class="bar" id="superRow"><label>Súper</label><div class="track"><div class="fill" id="bSuper"></div></div></div>
       <div class="bar" id="chargeRow" hidden><label>Remate</label><div class="track"><div class="fill" id="bCharge"></div></div></div>
       <div class="hint" id="superHint" hidden>Súper lista: tocá <span id="superKey">U</span></div>
@@ -233,6 +245,7 @@ body.coarse .legend{display:none}
       <p class="lede">Dos toques y un pique por lado. Pasala por arriba de la red y que pique adentro.</p>
       <div class="seg modeseg" id="modeSeg"><button data-m="ai">Amistoso</button><button data-m="tour">Torneo</button><button data-m="online">Online</button></div>
       <div class="opts">
+        <div class="opt" id="nameRow"><span>Tu nombre</span><input id="nameIn" class="namein" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Celeste"></div>
         <div class="opt" id="diffRow"><span>Rival</span><div class="seg" data-k="diff"><button data-v="0">Fácil</button><button data-v="1">Normal</button><button data-v="2">Difícil</button></div></div>
         <div class="opt"><span>Paredes</span><div class="seg" data-k="walls"><button data-v="1">En juego</button><button data-v="0">Son afuera</button></div><small id="wallsNote"></small></div>
         <div class="opt" id="ptsRow"><span>Puntos</span><div class="seg" data-k="pts"><button data-v="7">a 7</button><button data-v="11">a 11</button><button data-v="21">a 21</button></div></div>
@@ -243,6 +256,7 @@ body.coarse .legend{display:none}
         <p class="note">Dieciséis jugadores, eliminación directa y cuadro sorteado cada vez. Ganale a cuatro rivales seguidos y te llevás la Copa LD.</p>
         <div class="tourstat" id="tourStat"></div>
         <div class="row"><button class="play" id="tourBtn">Empezar torneo</button><button class="ghost" id="tourNewBtn" hidden>Torneo nuevo</button></div>
+        <button class="ghost" id="champsBtn">Ver campeones</button>
       </div>
       <div class="online" id="onlineBox" hidden>
         <button class="play" id="hostBtn">Crear partido</button>
@@ -294,6 +308,16 @@ body.coarse .legend{display:none}
     </div>
   </div>
 
+  <div class="overlay" id="champsOv" hidden>
+    <div class="panel">
+      <div class="eyebrow">Copa LD</div>
+      <h2>Campeones</h2>
+      <p class="note" id="champsNote">Los que ganaron la Copa LD, del más nuevo al más viejo.</p>
+      <div class="champs" id="champsList"></div>
+      <div class="row"><button class="ghost" id="champsBack">Volver</button></div>
+    </div>
+  </div>
+
   <div class="overlay" id="over" hidden>
     <div class="panel">
       <div class="eyebrow" id="overEyebrow">Final</div>
@@ -314,14 +338,19 @@ const $ = id => document.getElementById(id);
 // ---------- Constants ----------
 const W = 4, L = 8, NET_H = 1.0, R = 0.11, G = 9.8, AX = 7, AZ = 12, STEP = 1/120;
 const NAME = { P: 'Celeste', C: 'Naranja' };
+NAME.P = (() => { try { return String(localStorage.getItem('ft-name') || '').trim().slice(0, 16) || 'Celeste'; } catch (e) { return 'Celeste'; } })();
 const COLOR = { P: '#5cc4ee', C: '#ff8a3d' };
 const DIFF = [
-  { speed: 4.1, react: 0.40, reach: 1.05, reachH: 1.9, err: 0.85, whiff: 0.13, smash: 0.0, setup: 0.0, lob: 0.22, drop: 0.08, iq: 0.55, jump: false },
-  { speed: 5.0, react: 0.24, reach: 1.15, reachH: 2.05, err: 0.55, whiff: 0.05, smash: 0.45, setup: 0.15, lob: 0.28, drop: 0.18, iq: 0.8, jump: true },
+  { speed: 3.5, react: 0.5, reach: 0.95, reachH: 1.8, err: 1.1, whiff: 0.2, smash: 0.0, setup: 0.0, lob: 0.3, drop: 0.05, iq: 0.45, jump: false },
+  { speed: 4.6, react: 0.28, reach: 1.1, reachH: 2.0, err: 0.68, whiff: 0.07, smash: 0.35, setup: 0.12, lob: 0.28, drop: 0.15, iq: 0.75, jump: true },
   { speed: 5.9, react: 0.12, reach: 1.28, reachH: 2.2, err: 0.3, whiff: 0.015, smash: 0.8, setup: 0.35, lob: 0.3, drop: 0.25, iq: 0.96, jump: true },
 ];
 const opt = { diff: 0, walls: 1, pts: 11 };
 try { const s = JSON.parse(localStorage.getItem('ft-opts') || '{}'); Object.assign(opt, s); } catch (e) {}
+let playerName = '';
+try { playerName = cleanName(localStorage.getItem('ft-name') || ''); } catch (e) {}
+function cleanName(v) { return String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16); }
+const myName = () => playerName || 'Celeste';
 const other = t => t === 'P' ? 'C' : 'P';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function gauss() { let u = 0; while (!u) u = Math.random(); return clamp(Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()), -2.5, 2.5); }
@@ -741,8 +770,13 @@ function enterMatchUI() {
   $('touch').hidden = !isTouch || spectator;
   $('restartBtn').hidden = isOnline(); $('pauseNote').hidden = !isOnline();
   $('netPill').hidden = !isOnline();
-  setTxt('nmP', 'Celeste' + (myTeam === 'P' && !spectator ? ' · vos' : ''));
-  setTxt('nmC', NAME.C + (myTeam === 'C' && !spectator ? ' · vos' : ''));
+  if (mode !== 'guest') NAME.P = myName();
+  if (mode === 'guest' && !spectator) NAME.C = myName();
+  refreshTags();
+}
+function refreshTags() {
+  setTxt('nmP', NAME.P + (isOnline() && myTeam === 'P' && !spectator ? ' · vos' : ''));
+  setTxt('nmC', NAME.C + (isOnline() && myTeam === 'C' && !spectator ? ' · vos' : ''));
 }
 function startMatch() {
   score.P = score.C = 0;
@@ -858,8 +892,7 @@ function moveControlled(p, ip, dt) {
   if (ip.remHold) p.charge = Math.min(1, p.charge + dt / 0.7);
   const moving = ip.mx || ip.mz;
   let sp = 5.2;
-  if (ip.sprint && moving && p.stamina > 0.02) { sp = 7.6; p.stamina = Math.max(0, p.stamina - dt * 0.42); }
-  else p.stamina = Math.min(1, p.stamina + dt * 0.24);
+  sp = 6.0; // sin sprint: una sola velocidad, un poco más rápida que la base de antes
   if (state === 'serve' && server === p.team) {
     p.vx += ((s * ip.mx * 3) - p.vx) * Math.min(1, dt * 12); p.vz = 0;
     p.x = clamp(p.x + p.vx * dt, -W + 0.5, W - 0.5); p.z = s * (L + 0.7);
@@ -889,7 +922,7 @@ function actControlled(p, ip, reach, win) {
   }
   if (!p.buf || state !== 'play') return;
   if (now - p.buf.t > win) { p.buf = null; return; }
-  if (!canHit(p, reach, 2.15)) return;
+  if (!canHit(p, reach, 2.3)) return;
   let type = p.buf.type;
   if (type === 'pase') type = rally.touches === 0 ? 'setup' : 'corto';
   if (p.superArmed && type !== 'setup') { type = 'super'; p.superArmed = false; p.superM = 0; }
@@ -1014,10 +1047,10 @@ function update(dt) {
   }
   if (state === 'waiting') return;
   moveControlled(human, inp, dt);
-  actControlled(human, inp, 1.25, 0.32);
+  actControlled(human, inp, 1.45, 0.45);
   updatePlayerBody(human, dt);
   if (mode === 'ai') { updateAI(dt); updatePlayerBody(ai, dt); }
-  else { actControlled(ai, remote, 1.45, 0.5); ai.cool = Math.max(0, ai.cool - dt); }
+  else { actControlled(ai, remote, 1.6, 0.55); ai.cool = Math.max(0, ai.cool - dt); }
   if (state === 'serve') holdBallForServe();
   else stepBall(ball, dt, onBallEvent);
   if (state === 'point' && stateT > 2.0) {
@@ -1095,8 +1128,8 @@ function render(dt) {
   // rings
   for (const p of [human, ai]) {
     const mine = p === P && inMatch && !spectator;
-    const reach = mode === 'guest' ? 1.4 : 1.25;
-    const reachable = mine && state === 'play' && rally.owner === p.team && Math.hypot(ball.x - p.x, ball.z - p.z) < reach && ball.y < 2.15 + p.y && ball.z * (p.team === 'P' ? 1 : -1) > -0.15;
+    const reach = mode === 'guest' ? 1.6 : 1.45;
+    const reachable = mine && state === 'play' && rally.owner === p.team && Math.hypot(ball.x - p.x, ball.z - p.z) < reach && ball.y < 2.3 + p.y && ball.z * (p.team === 'P' ? 1 : -1) > -0.15;
     p.ring.glow.material.opacity = reachable ? 0.28 : 0;
     p.ring.r.material.color.setHex(p.superArmed ? 0xffd166 : TEAM_HEX[p.team]);
     p.ring.r.scale.setScalar(p.superArmed ? 1 + 0.1 * Math.sin(now * 14) : 1);
@@ -1117,7 +1150,6 @@ function render(dt) {
   }
   // HUD
   if (inMatch) {
-    $('bSprint').style.width = (P.stamina * 100).toFixed(1) + '%';
     $('bSuper').style.width = P.superM.toFixed(1) + '%';
     const ready = P.superM >= 100;
     $('superRow').classList.toggle('ready', ready);
@@ -1219,8 +1251,8 @@ function toMenu() {
   renderOpenGames(); renderTourBox();
 }
 
-const LEG_KEYS = [['WASD', 'Mover / apuntar'], ['Shift', 'Sprint'], ['Espacio', 'Saltar'], ['J', 'Golpe'], ['K', 'Pase'], ['L', 'Globo'], ['I', 'Remate (mantener)'], ['U', 'Súper'], ['P', 'Pausa']];
-const LEG_PAD = [['Stick', 'Mover / apuntar'], ['RT', 'Sprint'], ['A', 'Saltar', 'pa'], ['X', 'Golpe', 'px'], ['B', 'Pase', 'pb'], ['Y', 'Globo', 'py'], ['RB', 'Remate (mantener)'], ['LB', 'Súper'], ['Start', 'Pausa']];
+const LEG_KEYS = [['WASD', 'Mover / apuntar'], ['Espacio', 'Saltar'], ['J', 'Golpe'], ['K', 'Pase'], ['L', 'Globo'], ['I', 'Remate (mantener)'], ['U', 'Súper'], ['P', 'Pausa']];
+const LEG_PAD = [['Stick', 'Mover / apuntar'], ['A', 'Saltar', 'pa'], ['X', 'Golpe', 'px'], ['B', 'Pase', 'pb'], ['Y', 'Globo', 'py'], ['RB', 'Remate (mantener)'], ['LB', 'Súper'], ['Start', 'Pausa']];
 function buildLegend() {
   const list = padMode ? LEG_PAD : LEG_KEYS;
   const html = list.map(([k, l, c]) => `<span><span class="k ${c || ''}">${k}</span>${l}</span>`).join('');
@@ -1322,7 +1354,7 @@ function onGuest(on) {
     guestOn = true; lastActSeq = 0; lastSuSeq = 0; netEv.length = 0; remote.mx = remote.mz = 0;
     if (state === 'waiting') { hideMsg(); if (matchStarted) { enterMatchUI(); setupServe(server); } else startMatch(); }
   } else {
-    guestOn = false; remote.mx = remote.mz = 0;
+    guestOn = false; remote.mx = remote.mz = 0; NAME.C = 'Naranja'; refreshTags();
     if (state !== 'over') { state = 'waiting'; showMsg('Tu rival se fue', `Esperando que vuelva · código ${code.toUpperCase()}`, COLOR.P, true); }
   }
 }
@@ -1357,6 +1389,7 @@ function applyGuest(pr) {
     lastActSeq = num(a[0]);
     if (['golpe', 'pase', 'globo', 'remate'].includes(a[1])) ai.buf = { type: a[1], t: now, charge: clamp(num(a[2]), 0, 1) };
   }
+  if (typeof pr.nm === 'string') { const n = cleanName(pr.nm) || 'Naranja'; if (n !== NAME.C) { NAME.C = n; refreshTags(); } }
   if (num(pr.su) > lastSuSeq) { lastSuSeq = num(pr.su); if (ai.superM >= 100 && !ai.superArmed) { ai.superArmed = true; fx('arm'); } }
 }
 const r2 = v => Math.round(v * 100) / 100;
@@ -1365,7 +1398,7 @@ function snap() {
   return {
     st: state, sv: server, sc: [score.P, score.C], ro: rally.owner, rt: rally.touches, rb: rally.bounces, rd: rally.direct ? 1 : 0, lh: lastHitter,
     b: [r2(ball.x), r2(ball.y), r2(ball.z), r2(ball.vx), r2(ball.vy), r2(ball.vz), ball.super ? 1 : 0],
-    P: packP(human), C: packP(ai), ev: netEv, o: [opt.walls, opt.pts],
+    P: packP(human), C: packP(ai), ev: netEv, o: [opt.walls, opt.pts], nm: [NAME.P, NAME.C],
   };
 }
 function setFromPack(p, a, full) {
@@ -1384,6 +1417,7 @@ function applySnap(g) {
   if (Array.isArray(g.b)) { ball.x = num(g.b[0]); ball.y = num(g.b[1]); ball.z = num(g.b[2]); ball.vx = num(g.b[3]); ball.vy = num(g.b[4]); ball.vz = num(g.b[5]); ball.super = !!g.b[6]; }
   setFromPack(human, g.P, true);
   setFromPack(ai, g.C, spectator);
+  if (Array.isArray(g.nm)) { const a = cleanName(g.nm[0]) || 'Celeste', b = spectator ? (cleanName(g.nm[1]) || 'Naranja') : myName(); if (a !== NAME.P || b !== NAME.C) { NAME.P = a; NAME.C = b; refreshTags(); } }
   if (Array.isArray(g.o)) { opt.walls = g.o[0] ? 1 : 0; opt.pts = [7, 11, 21].includes(g.o[1]) ? g.o[1] : 11; }
   updateScore();
   if (Array.isArray(g.ev)) for (const e of g.ev) {
@@ -1408,7 +1442,7 @@ function netTick() {
     lastSend = t; wsSend({ t: 'g', g: snap() });
   } else if (!spectator) {
     lastSend = t;
-    wsSend({ t: 'in', p: { i: [r2(inp.mx), r2(inp.mz)], pos: [r2(ai.x), r2(ai.z), r2(ai.y), r2(ai.face), r2(ai.vx), r2(ai.vz)], a: lastAct, su: suSeq } });
+    wsSend({ t: 'in', p: { i: [r2(inp.mx), r2(inp.mz)], pos: [r2(ai.x), r2(ai.z), r2(ai.y), r2(ai.face), r2(ai.vx), r2(ai.vz)], a: lastAct, su: suSeq, nm: myName() } });
   }
 }
 
@@ -1473,8 +1507,8 @@ const ROUND_IDX = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11], [12, 13], [14]];
 let tourMode = false, tour = null, rivalIdx = 1;
 // la dificultad elegida en el menú ajusta a todos los rivales del torneo
 const TOUR_DIFF = [
-  { speed: 0.85, react: 1.4, reach: 0.92, reachH: 0.95, err: 1.35, whiff: 1.6, smash: 0.7, setup: 0.6, iq: 0.85, superP: 0.4 },
-  {},
+  { speed: 0.72, react: 1.8, reach: 0.85, reachH: 0.92, err: 1.65, whiff: 2.4, smash: 0.45, setup: 0.35, iq: 0.72, superP: 0 },
+  { speed: 0.9, react: 1.2, reach: 0.95, err: 1.15, whiff: 1.3, smash: 0.85, iq: 0.92, superP: 0.6 },
   { speed: 1.1, react: 0.75, reach: 1.07, reachH: 1.04, err: 0.75, whiff: 0.6, smash: 1.15, setup: 1.2, iq: 1.05, superP: 1.4 },
 ];
 const DIFF_NAMES = ['Fácil', 'Normal', 'Difícil'];
@@ -1527,6 +1561,7 @@ function playNextTourMatch() {
   rivalIdx = opp;
   const R = ROSTER[rivalIdx];
   tourMode = true; mode = 'ai'; myTeam = 'P';
+  tour.minDiff = Math.min(tour.minDiff ?? opt.diff, opt.diff); saveTour();
   setKit(Object.assign({ css: R.css, name: R.name }, R.kit));
   $('tour').hidden = true;
   startMatch();
@@ -1557,6 +1592,49 @@ const CUP_SVG = `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
   <rect x="34" y="100" width="32" height="6" rx="1.5" fill="#f4c440" opacity=".85"/>
   <path d="M50 22l3.5 7.2 7.9 1.1-5.7 5.6 1.4 7.9L50 40l-7.1 3.8 1.4-7.9-5.7-5.6 7.9-1.1z" fill="#fff6d0"/>
 </svg>`;
+// ---- lista de campeones ----
+/*CHAMPS-STORE-START*/
+// en la web la lista vive en el servidor, así la ven todos; si no responde, se usa la de esta compu
+function readLocalChamps() { try { const a = JSON.parse(localStorage.getItem('ft-campeones') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveLocalChamp(e) { const a = readLocalChamps(); a.unshift(e); try { localStorage.setItem('ft-campeones', JSON.stringify(a.slice(0, 200))); } catch (err) {} return a; }
+let champsShared = location.protocol !== 'file:';
+function loadChamps() {
+  if (!champsShared) return Promise.resolve(readLocalChamps());
+  return fetch('/api/campeones').then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(a => Array.isArray(a) ? a : []).catch(() => { champsShared = false; return readLocalChamps(); });
+}
+function saveChamp(e) {
+  saveLocalChamp(e);
+  if (!champsShared) return Promise.resolve();
+  return fetch('/api/campeones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) })
+    .then(r => { if (!r.ok) throw new Error(); }).catch(() => { champsShared = false; });
+}
+let CHAMPS_NOTE = 'Todos los que ganaron la Copa LD, del más nuevo al más viejo.';
+/*CHAMPS-STORE-END*/
+let myChampT = 0;
+function champRow(e, i) {
+  const row = document.createElement('div'); row.className = 'ch' + (e.t === myChampT ? ' me' : '');
+  const pos = document.createElement('div'); pos.className = 'pos'; pos.textContent = String(i + 1);
+  const who = document.createElement('div'); who.className = 'who';
+  const b = document.createElement('b'); b.textContent = cleanName(e.n) || 'Sin nombre';
+  const sp = document.createElement('span');
+  let date = ''; try { date = new Date(e.t).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (err) {}
+  sp.textContent = `Final ${String(e.s || '')} contra ${String(e.r || '').slice(0, 40)}${date ? ' · ' + date : ''}`;
+  who.append(b, sp);
+  const d = Math.max(0, Math.min(2, +e.d || 0));
+  const dif = document.createElement('span'); dif.className = 'dif d' + d; dif.textContent = DIFF_NAMES[d];
+  row.append(pos, who, dif);
+  return row;
+}
+function showChamps(back) {
+  $('champsNote').textContent = CHAMPS_NOTE;
+  $('tour').hidden = true;
+  const list = $('champsList'); list.textContent = '';
+  $('champsOv').hidden = false; $('champsBack').focus();
+  $('champsBack').onclick = () => { $('champsOv').hidden = true; if (back) back(); };
+  loadChamps().then(a => { list.textContent = ''; a.slice(0, 100).forEach((e, i) => list.append(champRow(e, i))); })
+    .catch(() => { list.textContent = 'No se pudo cargar la lista.'; });
+}
 function renderTourBox() {
   const n = trophies();
   const st = $('tourStat'); if (!st) return;
@@ -1572,10 +1650,11 @@ function showBracket() {
   if (!tour) newTournament();
   $('menu').hidden = true; $('over').hidden = true; $('hud').hidden = true; $('touch').hidden = true;
   inMatch = false; state = 'menu';
+  ROSTER[0].full = ROSTER[0].name = myName();
   const t = tour, last = t.last;
   // encabezado
   let eyebrow = `Copa LD · ${DIFF_NAMES[opt.diff]}`, title = 'El cuadro', lede = '';
-  if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya.`; }
+  if (t.champ) { title = '¡Campeón!'; eyebrow = `Copa LD · ${DIFF_NAMES[t.minDiff ?? opt.diff]}`; lede = `${myName()}, le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya${t.saved ? '' : ': guardala en la lista de campeones'}.`; }
   else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[14].w).full}.`; }
   else if (last && last.won) { title = `Pasás a ${ROUND_PLAY[t.round]}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
   else { lede = 'Dieciséis jugadores y el cuadro se sortea cada vez. Octavos y cuartos a 5 puntos, semis y final a 7, siempre con 2 de diferencia.'; }
@@ -1596,7 +1675,7 @@ function showBracket() {
         const dot = document.createElement('i'); const nm = document.createElement('span'); const b = document.createElement('b');
         if (pi == null) { row.classList.add('tbd'); dot.style.background = 'var(--line)'; nm.textContent = 'A definir'; }
         else {
-          const pl = P(pi); dot.style.background = pl.css; nm.textContent = pl.id === 'vos' ? 'Vos' : pl.full;
+          const pl = P(pi); dot.style.background = pl.css; nm.textContent = pl.id === 'vos' ? myName() : pl.full;
           if (m.w != null && m.w === pi) row.classList.add('w');
           if (sc != null) b.textContent = sc;
         }
@@ -1628,7 +1707,17 @@ function showBracket() {
   const btn = (txt, cls, fn) => { const b = document.createElement('button'); b.className = cls; b.textContent = txt; b.addEventListener('click', fn); act.append(b); return b; };
   let first;
   if (next >= 0) first = btn(`Jugar ${ROUND_PLAY[t.round]}`, 'play', () => { initAudio(); playNextTourMatch(); });
+  else if (t.champ && !t.saved) {
+    first = btn('Guardar en la lista de campeones', 'play', () => {
+      const e = { n: myName(), d: t.minDiff ?? opt.diff, r: last ? ROSTER[last.rival].full : '', s: last ? `${last.p}–${last.c}` : '', t: Date.now() };
+      first.disabled = true; first.textContent = 'Guardando…';
+      saveChamp(e).then(() => { t.saved = true; myChampT = e.t; saveTour(); showChamps(() => showBracket()); })
+        .catch(() => { first.disabled = false; first.textContent = 'No se pudo guardar. Probá de nuevo'; });
+    });
+    btn('Torneo nuevo', 'ghost', () => { newTournament(); showBracket(); });
+  }
   else first = btn('Torneo nuevo', 'play', () => { newTournament(); showBracket(); });
+  if (t.champ && t.saved) btn('Ver campeones', 'ghost', () => showChamps(() => showBracket()));
   btn('Menú', 'ghost', () => { $('tour').hidden = true; toMenu(); });
   $('tour').hidden = false;
   if (t.champ) { sfx.whistle(); sfx.crowd(true); }
@@ -1656,6 +1745,11 @@ document.querySelectorAll('#gfxSeg button').forEach(b => {
 syncOpts();
 $('playBtn').addEventListener('click', () => { initAudio(); mode = 'ai'; myTeam = 'P'; tourMode = false; setKit(DEFAULT_KIT); startMatch(); $('playBtn').blur(); });
 $('tourBtn').addEventListener('click', () => { initAudio(); if (!tour || tour.done) newTournament(); showBracket(); });
+$('champsBtn').addEventListener('click', () => { $('menu').hidden = true; showChamps(() => { $('menu').hidden = false; }); });
+$('nameIn').value = playerName;
+$('nameIn').addEventListener('keydown', e => e.stopPropagation());
+$('nameIn').addEventListener('keyup', e => e.stopPropagation());
+$('nameIn').addEventListener('input', () => { playerName = cleanName($('nameIn').value); NAME.P = myName(); try { localStorage.setItem('ft-name', playerName); } catch (e) {} });
 $('tourNewBtn').addEventListener('click', () => { initAudio(); newTournament(); showBracket(); });
 $('hostBtn').addEventListener('click', hostGame);
 $('joinBtn').addEventListener('click', () => joinGame($('codeIn').value));

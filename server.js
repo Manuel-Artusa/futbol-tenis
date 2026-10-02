@@ -13,6 +13,7 @@ const server = http.createServer((req, res) => {
   let p = decodeURIComponent((req.url || '/').split('?')[0]);
   if (p === '/') p = '/index.html';
   if (p === '/health') { res.writeHead(200); res.end('ok'); return; }
+  if (p === '/api/campeones') { champsApi(req, res); return; }
   const file = path.normalize(path.join(PUBLIC, p));
   if (!file.startsWith(PUBLIC)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
@@ -21,6 +22,35 @@ const server = http.createServer((req, res) => {
     res.end(data);
   });
 });
+
+// ---- lista de campeones: se guarda en un archivo JSON ----
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const CHAMPS_FILE = path.join(DATA_DIR, 'campeones.json');
+let champs = [];
+try { champs = JSON.parse(fs.readFileSync(CHAMPS_FILE, 'utf8')); if (!Array.isArray(champs)) champs = []; } catch (e) { champs = []; }
+function saveChampsFile() {
+  fs.mkdir(DATA_DIR, { recursive: true }, () => fs.writeFile(CHAMPS_FILE, JSON.stringify(champs), () => {}));
+}
+const lastPost = new Map();
+const clean = (v, n) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+function champsApi(req, res) {
+  const json = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
+  if (req.method === 'GET') return json(200, champs.slice(0, 100));
+  if (req.method !== 'POST') return json(405, { error: 'método no permitido' });
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now();
+  if (now - (lastPost.get(ip) || 0) < 15000) return json(429, { error: 'esperá un poco' });
+  let body = '';
+  req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
+  req.on('end', () => {
+    let e; try { e = JSON.parse(body); } catch (err) { return json(400, { error: 'datos inválidos' }); }
+    const entry = { n: clean(e.n, 16) || 'Sin nombre', d: [0, 1, 2].includes(e.d) ? e.d : 0, r: clean(e.r, 40), s: /^\d{1,2}–\d{1,2}$/.test(e.s) ? e.s : '', t: now };
+    lastPost.set(ip, now);
+    champs.unshift(entry); champs = champs.slice(0, 500);
+    saveChampsFile();
+    json(200, { ok: true });
+  });
+}
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
 const rooms = new Map(); // code -> { host, guest, specs:Set, o }

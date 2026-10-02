@@ -1471,7 +1471,23 @@ const TOUR_PTS = [5, 5, 7, 7];
 // índices de partidos por ronda: 8 de octavos, 4 de cuartos, 2 semis, 1 final
 const ROUND_IDX = [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11], [12, 13], [14]];
 let tourMode = false, tour = null, rivalIdx = 1;
-function curAI() { return tourMode ? ROSTER[rivalIdx].ai : DIFF[opt.diff]; }
+// la dificultad elegida en el menú ajusta a todos los rivales del torneo
+const TOUR_DIFF = [
+  { speed: 0.85, react: 1.4, reach: 0.92, reachH: 0.95, err: 1.35, whiff: 1.6, smash: 0.7, setup: 0.6, iq: 0.85, superP: 0.4 },
+  {},
+  { speed: 1.1, react: 0.75, reach: 1.07, reachH: 1.04, err: 0.75, whiff: 0.6, smash: 1.15, setup: 1.2, iq: 1.05, superP: 1.4 },
+];
+const DIFF_NAMES = ['Fácil', 'Normal', 'Difícil'];
+function curAI() {
+  if (!tourMode) return DIFF[opt.diff];
+  const ck = rivalIdx + ':' + opt.diff;
+  if (curAI.k === ck) return curAI.v;
+  const base = ROSTER[rivalIdx].ai, k = TOUR_DIFF[opt.diff] || {}, out = Object.assign({}, base);
+  for (const key in k) if (typeof out[key] === 'number') out[key] = out[key] * k[key];
+  out.iq = Math.min(0.98, out.iq);
+  curAI.k = ck; curAI.v = out;
+  return out;
+}
 function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && t.v === 3 && Array.isArray(t.m) && t.m.length === 15 && t.m.every(m => m.a == null || ROSTER[m.a])) tour = t; } catch (e) {} }
 function saveTour() { try { localStorage.setItem('ft-tour', JSON.stringify(tour)); } catch (e) {} }
 function trophies() { try { return +(localStorage.getItem('ft-trophies') || 0); } catch (e) { return 0; } }
@@ -1514,7 +1530,7 @@ function playNextTourMatch() {
   setKit(Object.assign({ css: R.css, name: R.name }, R.kit));
   $('tour').hidden = true;
   startMatch();
-  showMsg(R.full, `${ROUND_NAMES[tour.round]} · a ${TOUR_PTS[tour.round]} puntos`, R.css);
+  showMsg(R.full, `${ROUND_NAMES[tour.round]} · a ${TOUR_PTS[tour.round]} puntos · ${DIFF_NAMES[opt.diff]}`, R.css);
   setTimeout(() => { if (state === 'serve' && server === 'P' && tourMode) showServeMsg('P'); }, 1900);
 }
 function tourMatchDone(w) {
@@ -1558,7 +1574,7 @@ function showBracket() {
   inMatch = false; state = 'menu';
   const t = tour, last = t.last;
   // encabezado
-  let eyebrow = 'Copa LD', title = 'El cuadro', lede = '';
+  let eyebrow = `Copa LD · ${DIFF_NAMES[opt.diff]}`, title = 'El cuadro', lede = '';
   if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya.`; }
   else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[14].w).full}.`; }
   else if (last && last.won) { title = `Pasás a ${ROUND_PLAY[t.round]}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
@@ -1624,7 +1640,7 @@ let menuMode = 'ai';
 function syncOpts() {
   document.querySelectorAll('.seg[data-k]').forEach(seg => { const k = seg.dataset.k; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === +opt[k])); });
   document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === menuMode));
-  $('diffRow').hidden = menuMode !== 'ai';
+  $('diffRow').hidden = menuMode === 'online';
   $('playBtn').hidden = menuMode !== 'ai';
   $('ptsRow').hidden = menuMode === 'tour';
   $('tourBox').hidden = menuMode !== 'tour';

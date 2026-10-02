@@ -1414,51 +1414,67 @@ function netTick() {
 
 // ---------- Torneo ----------
 // Rivales inventados, de menor a mayor nivel. ai: mismos parámetros que DIFF.
+// Rivales del torneo. Cada torneo sortea 7 de estos 12.
+// lvl (0 a 1) define el nivel general; style ajusta cómo juega.
+function mkAI(lvl, style) {
+  return Object.assign({
+    speed: 3.9 + 2.0 * lvl, react: 0.42 - 0.30 * lvl, reach: 1.05 + 0.23 * lvl, reachH: 1.9 + 0.3 * lvl,
+    err: 0.75 - 0.43 * lvl, whiff: 0.1 - 0.085 * lvl, smash: 0.15 + 0.55 * lvl, setup: 0.35 * lvl,
+    lob: 0.25, drop: 0.15, iq: 0.6 + 0.36 * lvl, jump: lvl > 0.2, power: 0.4 + 0.5 * lvl,
+  }, style || {});
+}
+function mkRival(id, first, nick, last, short, css, shirt, shorts, skin, hair, rating, lvl, desc, style) {
+  const ai = mkAI(lvl, style);
+  return {
+    id, name: short, full: `${first} "${nick}" ${last}`, nick: desc, css, rating,
+    kit: { shirt, shorts, skin, hair }, ai,
+    bars: [clamp((ai.speed - 3.6) / 2.6, 0.1, 1), clamp(1 - (ai.err - 0.25) / 0.9, 0.1, 1), clamp(0.25 + 0.75 * Math.max(ai.smash, ai.power * 0.8), 0.1, 1)],
+  };
+}
 const ROSTER = [
-  { id: 'vos', name: 'Vos', nick: 'Celeste', css: '#5cc4ee', rating: 2.6 },
-  { id: 'quique', name: 'Quique', full: 'Quique Barrios', nick: '"El Paciente". Juega lento y la tira por arriba todo el tiempo.', css: '#5bbf62', rating: 1.0,
-    kit: { shirt: 0x5bbf62, shorts: 0x1f3d22, skin: 0xe0b48e, hair: 0x6b4a2b },
-    ai: { speed: 3.9, react: 0.42, reach: 1.05, reachH: 1.9, err: 0.6, whiff: 0.08, smash: 0.0, setup: 0.0, lob: 0.6, drop: 0.05, iq: 0.7, jump: false, power: 0.3 },
-    bars: [0.35, 0.6, 0.2] },
-  { id: 'nacho', name: 'Nacho', full: 'Nacho Ledesma', nick: '"Pulmón". Corre todo, pero le pega a cualquier lado.', css: '#f2c94c', rating: 1.5,
-    kit: { shirt: 0xf2c94c, shorts: 0x2a3550, skin: 0xc8946a, hair: 0x1a120c },
-    ai: { speed: 5.6, react: 0.3, reach: 1.05, reachH: 1.95, err: 1.0, whiff: 0.1, smash: 0.2, setup: 0.0, lob: 0.15, drop: 0.1, iq: 0.6, jump: true, power: 0.5 },
-    bars: [0.85, 0.25, 0.4] },
-  { id: 'tota', name: 'Tota', full: 'Tota Gómez', nick: '"La Zurda". Te deja la pelota cortita contra la red.', css: '#a07ae0', rating: 2.4,
-    kit: { shirt: 0xa07ae0, shorts: 0x2b1d45, skin: 0xd9a882, hair: 0x2d1a10 },
-    ai: { speed: 4.7, react: 0.25, reach: 1.1, reachH: 2.0, err: 0.55, whiff: 0.05, smash: 0.3, setup: 0.1, lob: 0.25, drop: 0.55, iq: 0.85, jump: true, power: 0.55 },
-    bars: [0.55, 0.65, 0.45] },
-  { id: 'rulo', name: 'Rulo', full: 'Rulo Medina', nick: '"El Cañón". Se la levanta solo y la clava de remate.', css: '#ef5350', rating: 2.6,
-    kit: { shirt: 0xef5350, shorts: 0x111318, skin: 0xb9805a, hair: 0x0e0b08 },
-    ai: { speed: 4.8, react: 0.25, reach: 1.15, reachH: 2.1, err: 0.75, whiff: 0.06, smash: 0.9, setup: 0.45, lob: 0.1, drop: 0.05, iq: 0.75, jump: true, power: 1.0 },
-    bars: [0.55, 0.45, 0.95] },
-  { id: 'facu', name: 'Facu', full: 'Facu Ríos', nick: '"El Muro". Llega a todas y no regala nada.', css: '#dfe3ea', rating: 2.9,
-    kit: { shirt: 0xdfe3ea, shorts: 0x2c3a52, skin: 0xe8c39e, hair: 0x8a6a3a },
-    ai: { speed: 5.0, react: 0.2, reach: 1.35, reachH: 2.25, err: 0.5, whiff: 0.03, smash: 0.4, setup: 0.1, lob: 0.3, drop: 0.15, iq: 0.92, jump: true, power: 0.6 },
-    bars: [0.65, 0.7, 0.55] },
-  { id: 'chino', name: 'Chino', full: 'Chino Vera', nick: '"El Mago". Tiene un tiro de fuego que no se ve venir.', css: '#ff6fa8', rating: 3.6,
-    kit: { shirt: 0xff6fa8, shorts: 0x3a1024, skin: 0xd8b088, hair: 0x101010 },
-    ai: { speed: 5.4, react: 0.16, reach: 1.2, reachH: 2.15, err: 0.4, whiff: 0.03, smash: 0.55, setup: 0.3, lob: 0.3, drop: 0.3, iq: 0.92, jump: true, power: 0.8, superP: 0.07 },
-    bars: [0.75, 0.8, 0.75] },
-  { id: 'ramon', name: 'Don Ramón', full: 'Don Ramón Peralta', nick: '"El Campeón". Ganó las últimas cuatro copas. Hay que bajarlo.', css: '#f4c440', rating: 4.2,
-    kit: { shirt: 0xf4c440, shorts: 0x15161b, skin: 0xc49a74, hair: 0xb8b8b8 },
-    ai: { speed: 5.9, react: 0.12, reach: 1.28, reachH: 2.2, err: 0.32, whiff: 0.015, smash: 0.75, setup: 0.35, lob: 0.3, drop: 0.25, iq: 0.96, jump: true, power: 0.9, superP: 0.04 },
-    bars: [0.9, 0.9, 0.85] },
+  { id: 'vos', name: 'Vos', full: 'Vos', nick: 'Celeste', css: '#5cc4ee', rating: 2.6 },
+  mkRival('colai', 'Colai', 'El Viejo', 'Zayat', 'Colai', '#5bbf62', 0x5bbf62, 0x1f3d22, 0xe0b48e, 0x9a9a9a, 2.0, 0.3,
+    'Tiene más partidos que nadie. No corre mucho, pero te la pone donde quiere.', { speed: 4.0, err: 0.45, lob: 0.55 }),
+  mkRival('monela', 'Gonzalo', 'Monela', 'Soler', 'Monela', '#ef5350', 0xef5350, 0x111318, 0xc8946a, 0x1a120c, 2.6, 0.5,
+    'Se la levanta solo y la clava de remate. Si la dejás alta, es punto de él.', { smash: 0.9, setup: 0.45, power: 1.0, err: 0.6 }),
+  mkRival('billete', 'Tomás', 'Billete', 'Márquez', 'Billete', '#f4c440', 0xf4c440, 0x2a3550, 0xd9a882, 0x2d1a10, 2.8, 0.55,
+    'Apunta a las líneas y casi nunca la tira afuera.', { err: 0.3, whiff: 0.02, drop: 0.25 }),
+  mkRival('niconico', 'Nachito', 'Nico Nico', 'Olmos', 'Nico Nico', '#b5e05a', 0xb5e05a, 0x2b3a12, 0xe8c39e, 0x6b4a2b, 1.6, 0.2,
+    'Corre todo y llega a pelotas imposibles, pero le pega a cualquier lado.', { speed: 5.6, err: 0.95, whiff: 0.1 }),
+  mkRival('mati', 'Manu', 'Mati', 'Artusa', 'Mati', '#ff8a3d', 0xff8a3d, 0x4a1f0c, 0xd9a882, 0x2a1b12, 3.4, 0.75,
+    'Completo: corre, apunta y tiene guardado un tiro de fuego.', { superP: 0.05 }),
+  mkRival('ruben', 'Pablito', 'Rubén', 'Villagra', 'Rubén', '#dfe3ea', 0xdfe3ea, 0x2c3a52, 0xc49a74, 0x15100c, 2.9, 0.6,
+    'Un muro: llega a todas y no regala nada.', { reach: 1.4, reachH: 2.3, iq: 0.95, smash: 0.3 }),
+  mkRival('peluche', 'Lauti', 'Peluche', 'Robledo', 'Peluche', '#ff6fa8', 0xff6fa8, 0x3a1024, 0xe0b48e, 0x8a6a3a, 1.4, 0.12,
+    'Juega tranquilo y te la deja cortita contra la red.', { drop: 0.6, smash: 0.05, power: 0.3 }),
+  mkRival('chino', 'El Chino', 'Chino', 'Aranda', 'Chino', '#d14fd1', 0xd14fd1, 0x2a0f2a, 0xd8b088, 0x101010, 3.6, 0.8,
+    'El mago del grupo: tiene un tiro de fuego que no se ve venir.', { superP: 0.08, setup: 0.35 }),
+  mkRival('kena', 'Santiago', 'La Kena', 'Baier', 'La Kena', '#2bb39a', 0x2bb39a, 0x0f2e28, 0xe8c39e, 0x3a2414, 2.4, 0.45,
+    'Salta más que nadie: todo lo que pasa alto lo cabecea o lo remata.', { reachH: 2.35, smash: 0.75, jump: true }),
+  mkRival('zaamii', 'Santiago', 'Zaamii', 'Zamitto', 'Zaamii', '#a07ae0', 0xa07ae0, 0x2b1d45, 0xc8946a, 0x1a120c, 1.9, 0.35,
+    'Impredecible: globos, cortitas y algún remate de la nada.', { lob: 0.4, drop: 0.4, smash: 0.5, err: 0.8 }),
+  mkRival('char', 'Carlos', 'Char', 'Costamagna', 'Char', '#ffd166', 0xffd166, 0x15161b, 0xc49a74, 0x2a1b12, 4.2, 0.95,
+    'El que hay que bajar. Rápido, preciso y con un remate que asusta.', { superP: 0.04 }),
+  mkRival('huevo', 'Pedro', 'El Huevo', 'Willner', 'Huevo', '#b07a4f', 0xb07a4f, 0x2a1a0e, 0xe8c39e, 0x4a3020, 2.2, 0.4,
+    'Paciente: devuelve todo y espera que te equivoques vos.', { err: 0.4, smash: 0.2, lob: 0.45, iq: 0.92 }),
 ];
 const ROUND_NAMES = ['Cuartos de final', 'Semifinal', 'Final'];
 const ROUND_SHORT = ['Cuartos', 'Semis', 'Final'];
 const TOUR_PTS = [5, 7, 7];
 let tourMode = false, tour = null, rivalIdx = 1;
 function curAI() { return tourMode ? ROSTER[rivalIdx].ai : DIFF[opt.diff]; }
-function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && Array.isArray(t.m) && t.m.length === 7) tour = t; } catch (e) {} }
+function loadTour() { try { const t = JSON.parse(localStorage.getItem('ft-tour') || 'null'); if (t && t.v === 2 && Array.isArray(t.m) && t.m.length === 7) tour = t; } catch (e) {} }
 function saveTour() { try { localStorage.setItem('ft-tour', JSON.stringify(tour)); } catch (e) {} }
 function trophies() { try { return +(localStorage.getItem('ft-trophies') || 0); } catch (e) { return 0; } }
 function addTrophy() { try { localStorage.setItem('ft-trophies', String(trophies() + 1)); } catch (e) {} }
 loadTour();
 function newTournament() {
-  // cuadro: QF [vos-Quique] [Nacho-Tota] [Rulo-Facu] [Chino-Ramón]; SF ganadores 0-1 y 2-3; final
-  tour = { round: 0, out: false, done: false, champ: false, last: null, m: [
-    { a: 0, b: 1 }, { a: 2, b: 3 }, { a: 4, b: 5 }, { a: 6, b: 7 }, { a: null, b: null }, { a: null, b: null }, { a: null, b: null } ] };
+  // se sortean 7 rivales; el más flojo te toca en cuartos y el más fuerte queda del otro lado del cuadro
+  const pool = ROSTER.map((r, i) => i).slice(1).sort(() => Math.random() - 0.5).slice(0, 7);
+  const r = pool.sort((a, b) => ROSTER[a].rating - ROSTER[b].rating);
+  tour = { v: 2, round: 0, out: false, done: false, champ: false, last: null, m: [
+    { a: 0, b: r[0] }, { a: r[3], b: r[4] }, { a: r[1], b: r[5] }, { a: r[2], b: r[6] },
+    { a: null, b: null }, { a: null, b: null }, { a: null, b: null } ] };
   saveTour();
 }
 function P(i) { return ROSTER[i]; }
@@ -1534,7 +1550,7 @@ function showBracket() {
   const t = tour, last = t.last;
   // encabezado
   let eyebrow = 'Copa de la Canchita', title = 'El cuadro', lede = '';
-  if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${ROSTER[last ? last.rival : 7].full} en la final. La copa es tuya.`; }
+  if (t.champ) { title = '¡Campeón!'; lede = `Le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya.`; }
   else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[6].w).id === 'vos' ? 'vos' : P(t.m[6].w).full}.`; }
   else if (last && last.won) { title = `Pasás a ${t.round === 1 ? 'semis' : 'la final'}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
   else { lede = 'Eliminación directa: cuartos a 5 puntos, semis y final a 7. Siempre con 2 de diferencia.'; }

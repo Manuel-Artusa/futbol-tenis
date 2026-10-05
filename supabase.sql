@@ -6,7 +6,11 @@ create table if not exists campeones (
   dificultad smallint not null default 0,
   rival text,
   resultado text,
+  puntos_en_contra smallint,
   creado timestamptz not null default now()
 );
 -- Nadie entra desde afuera: solo el servidor del juego, con su clave secreta.
 alter table campeones enable row level security;
+
+-- Si la tabla ya existía de antes, esto agrega la columna nueva (no borra nada):
+alter table campeones add column if not exists puntos_en_contra smallint;

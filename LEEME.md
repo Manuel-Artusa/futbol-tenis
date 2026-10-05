@@ -33,7 +33,11 @@ También funciona en Railway (pago) o en cualquier otro hosting de Node que acep
 
 ## Lista de campeones (para que no se borre)
 
-Cuando alguien gana la Copa LD puede guardar su nombre en la lista de campeones, con la dificultad, el resultado de la final y la fecha. La lista la guarda el servidor, así que la ven todos los que entran.
+Cuando alguien gana la Copa LD puede guardar su nombre en la lista de campeones, con la dificultad, los puntos que le hicieron en todo el torneo, el resultado de la final y la fecha. La lista la guarda el servidor, así que la ven todos los que entran.
+
+El ranking pone arriba al que menos puntos recibió en todo el torneo. Si dos empatan, va primero el que jugó en una dificultad más alta, y si siguen empatados, el que lo ganó antes.
+
+**Si ya tenías la tabla creada de antes**, corré de nuevo el archivo `supabase.sql` en el SQL Editor de Supabase: le agrega la columna de puntos en contra sin borrar nada. Los campeones viejos quedan al final de la lista, porque no tienen ese dato.
 
 En el plan gratis de Render el servidor se reinicia seguido y pierde los archivos, así que la lista se borraría. Para que quede guardada para siempre, se guarda en Supabase, que es gratis:
 

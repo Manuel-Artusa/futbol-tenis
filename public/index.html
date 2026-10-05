@@ -143,7 +143,7 @@ body.coarse .legend{display:none}
 .ch .who b{display:block;font:900 22px/1.05 var(--display);text-transform:uppercase;overflow-wrap:anywhere}
 .ch .who span{display:block;font:500 13px/1.3 var(--ui);color:var(--muted);margin-top:3px}
 .ch .dif{font:700 12px/1 var(--ui);letter-spacing:.08em;text-transform:uppercase;padding:6px 9px;border-radius:6px;color:#12100c;white-space:nowrap}
-.dif.d0{background:#8be39a}.dif.d1{background:#f2c94c}.dif.d2{background:#ff6b6b}
+.dif.d0{background:#8be39a}.dif.d1{background:#f2c94c}.dif.d2{background:#ff6b6b}.dif.d3{background:#c58bff}
 .champs:empty::after{content:'Todavía no ganó nadie. Ganá la Copa LD y guardá tu nombre acá.';font:500 15px/1.4 var(--ui);color:var(--muted)}
 .tourstat{display:flex;gap:10px;flex-wrap:wrap;font:600 14px/1.3 var(--ui);color:var(--muted)}
 .tourstat b{color:var(--gold);font:900 20px/1 var(--display)}
@@ -246,7 +246,7 @@ body.coarse .legend{display:none}
       <div class="seg modeseg" id="modeSeg"><button data-m="ai">Amistoso</button><button data-m="tour">Torneo</button><button data-m="online">Online</button></div>
       <div class="opts">
         <div class="opt" id="nameRow"><span>Tu nombre</span><input id="nameIn" class="namein" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Celeste"></div>
-        <div class="opt" id="diffRow"><span>Rival</span><div class="seg" data-k="diff"><button data-v="0">Fácil</button><button data-v="1">Normal</button><button data-v="2">Difícil</button></div></div>
+        <div class="opt" id="diffRow"><span>Rival</span><div class="seg" data-k="diff"><button data-v="0">Fácil</button><button data-v="1">Normal</button><button data-v="2">Difícil</button><button data-v="3">Leyenda</button></div></div>
         <div class="opt"><span>Paredes</span><div class="seg" data-k="walls"><button data-v="1">En juego</button><button data-v="0">Son afuera</button></div><small id="wallsNote"></small></div>
         <div class="opt" id="ptsRow"><span>Puntos</span><div class="seg" data-k="pts"><button data-v="7">a 7</button><button data-v="11">a 11</button><button data-v="21">a 21</button></div></div>
         <div class="opt"><span>Gráficos</span><div class="seg" id="gfxSeg"><button data-g="low">Livianos</button><button data-g="high">Lindos</button></div><small>Livianos anda fluido en cualquier compu. Al cambiarlo se recarga la página.</small></div>
@@ -344,6 +344,7 @@ const DIFF = [
   { speed: 3.5, react: 0.5, reach: 0.95, reachH: 1.8, err: 1.1, whiff: 0.2, smash: 0.0, setup: 0.0, lob: 0.3, drop: 0.05, iq: 0.45, jump: false },
   { speed: 4.6, react: 0.28, reach: 1.1, reachH: 2.0, err: 0.68, whiff: 0.07, smash: 0.35, setup: 0.12, lob: 0.28, drop: 0.15, iq: 0.75, jump: true },
   { speed: 5.9, react: 0.12, reach: 1.28, reachH: 2.2, err: 0.3, whiff: 0.015, smash: 0.8, setup: 0.35, lob: 0.3, drop: 0.25, iq: 0.96, jump: true },
+  { speed: 6.5, react: 0.07, reach: 1.4, reachH: 2.35, err: 0.2, whiff: 0.005, smash: 0.9, setup: 0.45, lob: 0.3, drop: 0.3, iq: 0.99, jump: true, superP: 0.05 },
 ];
 const opt = { diff: 0, walls: 1, pts: 11 };
 try { const s = JSON.parse(localStorage.getItem('ft-opts') || '{}'); Object.assign(opt, s); } catch (e) {}
@@ -1298,7 +1299,7 @@ function showOver(w) {
   const mine = w === myTeam && !spectator;
   $('overTitle').textContent = spectator ? `Ganó ${NAME[w]}` : mine ? '¡Ganaste!' : `Ganó ${NAME[w]}`;
   $('overTitle').style.color = COLOR[w];
-  $('overEyebrow').textContent = isOnline() ? `Final · online, código ${code.toUpperCase()}` : `Final · rival ${['fácil', 'normal', 'difícil'][opt.diff]}`;
+  $('overEyebrow').textContent = isOnline() ? `Final · online, código ${code.toUpperCase()}` : `Final · rival ${DIFF_NAMES[opt.diff].toLowerCase()}`;
   $('fP').textContent = score.P; $('fC').textContent = score.C;
   $('againBtn').hidden = mode === 'guest';
   $('overNote').hidden = mode !== 'guest';
@@ -1641,8 +1642,9 @@ const TOUR_DIFF = [
   { speed: 0.72, react: 1.8, reach: 0.85, reachH: 0.92, err: 1.65, whiff: 2.4, smash: 0.45, setup: 0.35, iq: 0.72, superP: 0 },
   { speed: 0.9, react: 1.2, reach: 0.95, err: 1.15, whiff: 1.3, smash: 0.85, iq: 0.92, superP: 0.6 },
   { speed: 1.1, react: 0.75, reach: 1.07, reachH: 1.04, err: 0.75, whiff: 0.6, smash: 1.15, setup: 1.2, iq: 1.05, superP: 1.4 },
+  { speed: 1.2, react: 0.55, reach: 1.13, reachH: 1.07, err: 0.55, whiff: 0.3, smash: 1.3, setup: 1.4, iq: 1.1, superP: 2.0 },
 ];
-const DIFF_NAMES = ['Fácil', 'Normal', 'Difícil'];
+const DIFF_NAMES = ['Fácil', 'Normal', 'Difícil', 'Leyenda'];
 function curAI() {
   if (!tourMode) return DIFF[opt.diff];
   const ck = rivalIdx + ':' + opt.diff;
@@ -1665,7 +1667,7 @@ function newTournament() {
   const m = [];
   for (let k = 0; k < 8; k++) m.push({ a: ids[2 * k], b: ids[2 * k + 1] });
   for (let k = 8; k < 15; k++) m.push({ a: null, b: null });
-  tour = { v: 3, round: 0, out: false, done: false, champ: false, last: null, m };
+  tour = { v: 3, round: 0, out: false, done: false, champ: false, last: null, against: 0, m };
   saveTour();
 }
 function P(i) { return ROSTER[i]; }
@@ -1704,6 +1706,7 @@ function tourMatchDone(w) {
   const m = tour.m[mi]; const youA = m.a === 0;
   m.w = w === 'P' ? 0 : (youA ? m.b : m.a);
   m.sa = youA ? score.P : score.C; m.sb = youA ? score.C : score.P;
+  tour.against = (tour.against || 0) + score.C;
   const roundPlayed = tour.round;
   tour.last = { won: w === 'P', round: roundPlayed, p: score.P, c: score.C, rival: rivalIdx };
   if (w === 'P') { advance(); if (tour.done) { tour.champ = true; addTrophy(); } }
@@ -1740,7 +1743,7 @@ function saveChamp(e) {
   return fetch('/api/campeones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) })
     .then(r => { if (!r.ok) throw new Error(); }).catch(() => { champsShared = false; });
 }
-let CHAMPS_NOTE = 'Todos los que ganaron la Copa LD, del más nuevo al más viejo.';
+let CHAMPS_NOTE = 'Todos los que ganaron la Copa LD. Arriba, los que menos puntos recibieron en todo el torneo.';
 /*CHAMPS-STORE-END*/
 let myChampT = 0;
 function champRow(e, i) {
@@ -1750,12 +1753,18 @@ function champRow(e, i) {
   const b = document.createElement('b'); b.textContent = cleanName(e.n) || 'Sin nombre';
   const sp = document.createElement('span');
   let date = ''; try { date = new Date(e.t).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (err) {}
-  sp.textContent = `Final ${String(e.s || '')} contra ${String(e.r || '').slice(0, 40)}${date ? ' · ' + date : ''}`;
+  const pc = Number.isFinite(+e.pc) && e.pc !== null && e.pc !== '' ? `Le hicieron ${+e.pc} · ` : '';
+  sp.textContent = `${pc}Final ${String(e.s || '')} contra ${String(e.r || '').slice(0, 40)}${date ? ' · ' + date : ''}`;
   who.append(b, sp);
-  const d = Math.max(0, Math.min(2, +e.d || 0));
+  const d = Math.max(0, Math.min(3, +e.d || 0));
   const dif = document.createElement('span'); dif.className = 'dif d' + d; dif.textContent = DIFF_NAMES[d];
   row.append(pos, who, dif);
   return row;
+}
+// ranking: primero el que menos puntos recibió en todo el torneo; si empatan, el de dificultad más alta y después el más antiguo
+function rankChamps(a) {
+  const pcOf = e => (e.pc === null || e.pc === undefined || e.pc === '' || !Number.isFinite(+e.pc)) ? Infinity : +e.pc;
+  return a.slice().sort((x, y) => pcOf(x) - pcOf(y) || (+y.d || 0) - (+x.d || 0) || (+x.t || 0) - (+y.t || 0));
 }
 function showChamps(back) {
   $('champsNote').textContent = CHAMPS_NOTE;
@@ -1763,7 +1772,7 @@ function showChamps(back) {
   const list = $('champsList'); list.textContent = '';
   $('champsOv').hidden = false; $('champsBack').focus();
   $('champsBack').onclick = () => { $('champsOv').hidden = true; if (back) back(); };
-  loadChamps().then(a => { list.textContent = ''; a.slice(0, 100).forEach((e, i) => list.append(champRow(e, i))); })
+  loadChamps().then(a => { list.textContent = ''; rankChamps(a).slice(0, 100).forEach((e, i) => list.append(champRow(e, i))); })
     .catch(() => { list.textContent = 'No se pudo cargar la lista.'; });
 }
 function renderTourBox() {
@@ -1785,7 +1794,7 @@ function showBracket() {
   const t = tour, last = t.last;
   // encabezado
   let eyebrow = `Copa LD · ${DIFF_NAMES[opt.diff]}`, title = 'El cuadro', lede = '';
-  if (t.champ) { title = '¡Campeón!'; eyebrow = `Copa LD · ${DIFF_NAMES[t.minDiff ?? opt.diff]}`; lede = `${myName()}, le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. La copa es tuya${t.saved ? '' : ': guardala en la lista de campeones'}.`; }
+  if (t.champ) { title = '¡Campeón!'; eyebrow = `Copa LD · ${DIFF_NAMES[t.minDiff ?? opt.diff]}`; lede = `${myName()}, le ganaste ${last ? `${last.p}–${last.c}` : ''} a ${(last ? ROSTER[last.rival].full : 'el campeón')} en la final. En todo el torneo te hicieron ${t.against || 0} ${(t.against || 0) === 1 ? 'punto' : 'puntos'}${t.saved ? '' : ': guardalo en la lista de campeones'}.`; }
   else if (t.out && last) { title = 'Quedaste afuera'; lede = `Perdiste ${last.p}–${last.c} con ${ROSTER[last.rival].full} en ${ROUND_NAMES[last.round].toLowerCase()}. Campeón: ${P(t.m[14].w).full}.`; }
   else if (last && last.won) { title = `Pasás a ${ROUND_PLAY[t.round]}`; lede = `Le ganaste ${last.p}–${last.c} a ${ROSTER[last.rival].full}.`; }
   else { lede = 'Dieciséis jugadores y el cuadro se sortea cada vez. Octavos y cuartos a 5 puntos, semis y final a 7, siempre con 2 de diferencia.'; }
@@ -1840,7 +1849,7 @@ function showBracket() {
   if (next >= 0) first = btn(`Jugar ${ROUND_PLAY[t.round]}`, 'play', () => { initAudio(); playNextTourMatch(); });
   else if (t.champ && !t.saved) {
     first = btn('Guardar en la lista de campeones', 'play', () => {
-      const e = { n: myName(), d: t.minDiff ?? opt.diff, r: last ? ROSTER[last.rival].full : '', s: last ? `${last.p}–${last.c}` : '', t: Date.now() };
+      const e = { n: myName(), d: t.minDiff ?? opt.diff, pc: t.against || 0, r: last ? ROSTER[last.rival].full : '', s: last ? `${last.p}–${last.c}` : '', t: Date.now() };
       first.disabled = true; first.textContent = 'Guardando…';
       saveChamp(e).then(() => { t.saved = true; myChampT = e.t; saveTour(); showChamps(() => showBracket()); })
         .catch(() => { first.disabled = false; first.textContent = 'No se pudo guardar. Probá de nuevo'; });

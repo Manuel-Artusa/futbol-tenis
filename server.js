@@ -37,19 +37,26 @@ function saveChampsFile() { fs.mkdir(DATA_DIR, { recursive: true }, () => fs.wri
 const sbHeaders = () => ({ apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' });
 let sbCache = null, sbCacheAt = 0;
 async function listChamps() {
-  if (!useSupabase) return champs.slice(0, 100);
+  if (!useSupabase) {
+    const pcOf = x => (x.pc === null || x.pc === undefined) ? Infinity : x.pc;
+    return champs.slice().sort((x, y) => pcOf(x) - pcOf(y) || (y.d || 0) - (x.d || 0) || x.t - y.t).slice(0, 100);
+  }
   if (sbCache && Date.now() - sbCacheAt < 10000) return sbCache;
-  const r = await fetch(`${SB_URL}/rest/v1/campeones?select=nombre,dificultad,rival,resultado,creado&order=creado.desc&limit=100`, { headers: sbHeaders() });
+  let r = await fetch(`${SB_URL}/rest/v1/campeones?select=nombre,dificultad,rival,resultado,creado,puntos_en_contra&order=puntos_en_contra.asc.nullslast,dificultad.desc,creado.asc&limit=100`, { headers: sbHeaders() });
+  // si todavía no se agregó la columna puntos_en_contra, se lee como antes
+  if (r.status === 400) r = await fetch(`${SB_URL}/rest/v1/campeones?select=nombre,dificultad,rival,resultado,creado&order=creado.desc&limit=100`, { headers: sbHeaders() });
   if (!r.ok) throw new Error('supabase ' + r.status);
   const rows = await r.json();
-  sbCache = rows.map(x => ({ n: x.nombre, d: x.dificultad, r: x.rival || '', s: x.resultado || '', t: Date.parse(x.creado) || 0 }));
+  sbCache = rows.map(x => ({ n: x.nombre, d: x.dificultad, pc: x.puntos_en_contra ?? null, r: x.rival || '', s: x.resultado || '', t: Date.parse(x.creado) || 0 }));
   sbCacheAt = Date.now();
   return sbCache;
 }
 async function addChamp(e) {
   if (!useSupabase) { champs.unshift(e); champs = champs.slice(0, 500); saveChampsFile(); return; }
-  const r = await fetch(`${SB_URL}/rest/v1/campeones`, { method: 'POST', headers: Object.assign(sbHeaders(), { Prefer: 'return=minimal' }),
-    body: JSON.stringify({ nombre: e.n, dificultad: e.d, rival: e.r, resultado: e.s }) });
+  const post = body => fetch(`${SB_URL}/rest/v1/campeones`, { method: 'POST', headers: Object.assign(sbHeaders(), { Prefer: 'return=minimal' }), body: JSON.stringify(body) });
+  const base = { nombre: e.n, dificultad: e.d, rival: e.r, resultado: e.s };
+  let r = await post(Object.assign({ puntos_en_contra: e.pc }, base));
+  if (r.status === 400) r = await post(base); // la tabla todavía no tiene la columna nueva
   if (!r.ok) throw new Error('supabase ' + r.status);
   sbCache = null;
 }
@@ -66,7 +73,7 @@ function champsApi(req, res) {
   req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
   req.on('end', () => {
     let e; try { e = JSON.parse(body); } catch (err) { return json(400, { error: 'datos inválidos' }); }
-    const entry = { n: clean(e.n, 16) || 'Sin nombre', d: [0, 1, 2].includes(e.d) ? e.d : 0, r: clean(e.r, 40), s: /^\d{1,2}–\d{1,2}$/.test(e.s) ? e.s : '', t: now };
+    const entry = { n: clean(e.n, 16) || 'Sin nombre', d: [0, 1, 2, 3].includes(e.d) ? e.d : 0, pc: Number.isInteger(e.pc) && e.pc >= 0 && e.pc < 200 ? e.pc : null, r: clean(e.r, 40), s: /^\d{1,2}–\d{1,2}$/.test(e.s) ? e.s : '', t: now };
     lastPost.set(ip, now);
     addChamp(entry).then(() => json(200, { ok: true })).catch(err => { console.error(err.message); lastPost.delete(ip); json(502, { error: 'no se pudo guardar' }); });
   });
